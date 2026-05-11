@@ -386,3 +386,115 @@ class RecruiterDashboard(models.Model):
     def __str__(self):
         return f"Dashboard for {self.recruiter.email}"
 
+
+# External Job API Integration
+class ExternalJobListing(models.Model):
+    class APISource(models.TextChoices):
+        JSEARCH = "jsearch", "JSearch API"
+        ADZUNA = "adzuna", "Adzuna API"
+        REMOTIVE = "remotive", "Remotive API"
+
+    external_id = models.CharField(max_length=255, unique=True)
+    source = models.CharField(max_length=20, choices=APISource.choices)
+    title = models.CharField(max_length=180)
+    company = models.CharField(max_length=180)
+    location = models.CharField(max_length=180)
+    description = models.TextField()
+    skills_required = models.JSONField(default=list, blank=True)
+    employment_type = models.CharField(max_length=50, blank=True)
+    salary_min = models.PositiveIntegerField(null=True, blank=True)
+    salary_max = models.PositiveIntegerField(null=True, blank=True)
+    job_url = models.URLField()
+    is_remote = models.BooleanField(default=False)
+    is_internship = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    synced_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.title} at {self.company} (from {self.source})"
+
+
+
+
+# Resume Template for PDF Generation
+class ResumeTemplate(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="resume_template",
+    )
+    full_name = models.CharField(max_length=180)
+    email = models.EmailField()
+    phone = models.CharField(max_length=20, blank=True)
+    location = models.CharField(max_length=180, blank=True)
+    professional_summary = models.TextField(blank=True)
+    experience = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of {title, company, duration, description}",
+    )
+    education = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of {degree, field, institution, year}",
+    )
+    skills = models.JSONField(default=list, blank=True)
+    certifications = models.JSONField(default=list, blank=True)
+    projects = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of {name, description, link, skills_used}",
+    )
+    template_style = models.CharField(
+        max_length=50,
+        default="modern",
+        choices=[
+            ("modern", "Modern"),
+            ("classic", "Classic"),
+            ("creative", "Creative"),
+        ],
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Resume Template for {self.user.email}"
+
+
+# OTP Verification for Authentication
+class OTPVerification(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="otp_verifications",
+    )
+    otp = models.CharField(max_length=6)
+    email = models.EmailField()
+    is_used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"OTP for {self.email}"
+
+
+# Password Reset Token
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="password_reset_tokens",
+    )
+    token = models.CharField(max_length=255, unique=True)
+    is_used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def __str__(self):
+        return f"Reset Token for {self.user.email}"
+

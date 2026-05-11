@@ -728,3 +728,119 @@ export async function saveFavoriteJob(jobId, action = "add") {
 export function hasSession() {
   return Boolean(getStoredTokens()?.access);
 }
+
+// ========== NEW FEATURE API HELPERS ==========
+
+// 1. External Jobs API
+export async function fetchExternalJobs(query, location = "", jobType = "") {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/external-jobs/`, {
+      params: { q: query, location, type: jobType },
+      headers,
+    })
+  );
+  return data;
+}
+
+// 2. Authentication Features
+export async function sendEmailOTP(email) {
+  const { data } = await api.post(`${API_JOBS_BASE}/auth/send-otp/`, { email });
+  return data;
+}
+
+export async function verifyEmailOTP(email, otp, password, role = "student") {
+  const { data } = await api.post(`${API_JOBS_BASE}/auth/verify-otp/`, {
+    email,
+    otp,
+    password,
+    role,
+  });
+  return data;
+}
+
+export async function sendPasswordResetEmail(email) {
+  const { data } = await api.post(`${API_JOBS_BASE}/auth/forgot-password/`, { email });
+  return data;
+}
+
+export async function resetPasswordViaJobsApi(token, newPassword) {
+  const { data } = await api.post(`${API_JOBS_BASE}/auth/reset-password/`, {
+    token,
+    new_password: newPassword,
+  });
+  return data;
+}
+
+// 3. Dashboards
+export async function getLiveRecruiterDashboard() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/recruiter/dashboard/`, { headers })
+  );
+  return data;
+}
+
+export async function getStudentDashboard() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/student/dashboard/`, { headers })
+  );
+  return data;
+}
+
+// 4. Resume PDF
+export async function generateResumePDF(templateData, style = "modern") {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(
+      `${API_JOBS_BASE}/resume/generate-pdf/`,
+      { template: templateData, style },
+      { headers }
+    )
+  );
+  return data;
+}
+
+// 5. Admin Analytics
+export async function getAdminAnalytics() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/admin/analytics/`, { headers })
+  );
+  return data;
+}
+
+// 6. Theme Toggle
+export async function toggleTheme(theme) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(
+      `${API_JOBS_BASE}/user/toggle-theme/`,
+      { theme },
+      { headers }
+    )
+  );
+  return data;
+}
+
+// 7. Notifications
+export async function getUserNotifications() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/user/notifications/`, { headers })
+  );
+  return data;
+}
+
+export async function markNotificationReadViaJobsApi(notificationId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(
+      `${API_JOBS_BASE}/user/notifications/mark-read/`,
+      { notification_id: notificationId },
+      { headers }
+    )
+  );
+  return data;
+}
+
+// 8. Chat
+export async function getChatHistory(recipientId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/chat/history/${recipientId}/`, { headers })
+  );
+  return data;
+}

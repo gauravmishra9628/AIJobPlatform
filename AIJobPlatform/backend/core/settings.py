@@ -26,6 +26,7 @@ ALLOWED_HOSTS = [
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',  # WebSocket support
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -163,3 +164,19 @@ EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True") == "True"
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "AI Job Portal <noreply@example.com>")
+
+# Channels & WebSockets Configuration
+ASGI_APPLICATION = "core.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
+
+# API Keys for External Services
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+GOOGLE_GEMINI_KEY = os.environ.get("GOOGLE_GEMINI_KEY", "")
+JSEARCH_API_KEY = os.environ.get("JSEARCH_API_KEY", "")
+ADZUNA_API_ID = os.environ.get("ADZUNA_API_ID", "")
+ADZUNA_API_KEY = os.environ.get("ADZUNA_API_KEY", "")

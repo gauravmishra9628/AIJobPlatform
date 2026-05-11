@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views, advanced_views, ai_views
+from . import feature_views
 
 app_name = "jobs"
 
@@ -89,6 +90,39 @@ urlpatterns = [
     path("dashboard/", ai_views.get_recruiter_dashboard, name="dashboard"),
     path("dashboard/update/", ai_views.update_recruiter_dashboard, name="update-dashboard"),
     path("dashboard/favorite/", ai_views.save_favorite_job, name="favorite-job"),
+
+        # ========== NEW FEATURES ==========
+
+        # 1. External Job APIs
+        path("external-jobs/", feature_views.fetch_external_jobs, name="external-jobs"),
+
+        # 2. Authentication
+        path("auth/send-otp/", feature_views.send_email_otp, name="send-otp"),
+        path("auth/verify-otp/", feature_views.verify_email_otp, name="verify-otp"),
+        path("auth/forgot-password/", feature_views.send_password_reset_email, name="forgot-password"),
+        path("auth/reset-password/", feature_views.reset_password, name="reset-password"),
+
+        # 3. Recruiter Dashboard
+        path("recruiter/dashboard/", feature_views.get_recruiter_dashboard, name="recruiter-dashboard"),
+
+        # 4. Student Dashboard
+        path("student/dashboard/", feature_views.get_student_dashboard, name="student-dashboard"),
+
+        # 5. Resume PDF Generator
+        path("resume/generate-pdf/", feature_views.generate_resume_pdf, name="generate-resume-pdf"),
+
+        # 6. Admin Analytics
+        path("admin/analytics/", feature_views.get_admin_analytics, name="admin-analytics"),
+
+        # 7. Theme Toggle
+        path("user/toggle-theme/", feature_views.toggle_theme, name="toggle-theme"),
+
+        # 8. Notifications
+        path("user/notifications/", feature_views.get_notifications, name="user-notifications"),
+        path("user/notifications/mark-read/", feature_views.mark_notification_read, name="mark-notification-read"),
+
+        # 9. Real-time Chat
+        path("chat/history/<int:recipient_id>/", feature_views.get_chat_history, name="chat-history"),
 ]
 
 

@@ -29,3 +29,25 @@ def send_password_reset_email(request, user, token):
         fail_silently=False,
     )
 
+
+def send_otp_email(email, otp):
+    """Send OTP verification email"""
+    send_mail(
+        subject="Your AI Job Portal Verification Code",
+        message=f"Your verification code is: {otp}\n\nThis code expires in 10 minutes.",
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[email],
+        fail_silently=False,
+    )
+
+
+def send_password_reset_link(email, reset_link):
+    """Send password reset link"""
+    send_mail(
+        subject="Reset your AI Job Portal password",
+        message=f"Click the link below to reset your password:\n{reset_link}\n\nThis link expires in 24 hours.",
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[email],
+        fail_silently=False,
+    )
+
