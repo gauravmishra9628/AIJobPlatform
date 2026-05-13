@@ -5,6 +5,7 @@ export default function AIMatchScoring({ jobId, resumeId }) {
   const [match, setMatch] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const missingSkills = match?.missing_skills_required?.length ? match.missing_skills_required : match?.missing_skills || [];
 
   const handleCalculate = async () => {
     setLoading(true);
@@ -96,9 +97,9 @@ export default function AIMatchScoring({ jobId, resumeId }) {
 
         {match.missing_skills && match.missing_skills.length > 0 && (
           <div className="detail-section">
-            <h4>⚠ Missing Skills ({match.missing_skills.length})</h4>
+            <h4>⚠ Missing Skills ({missingSkills.length})</h4>
             <div className="skills-list">
-              {match.missing_skills.map((skill, idx) => (
+              {missingSkills.map((skill, idx) => (
                 <span key={idx} className="skill-badge warning">{skill}</span>
               ))}
             </div>
@@ -120,6 +121,19 @@ export default function AIMatchScoring({ jobId, resumeId }) {
           <div className="detail-section">
             <h4>Why This Match</h4>
             <p>{match.match_reasons}</p>
+          </div>
+        )}
+
+        {match.skill_recommendations && match.skill_recommendations.length > 0 && (
+          <div className="detail-section">
+            <h4>Skill Recommendations</h4>
+            <div className="skills-list">
+              {match.skill_recommendations.slice(0, 5).map((item, idx) => (
+                <span key={idx} className="skill-badge">
+                  {item.skill}: {item.priority}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>

@@ -1,12 +1,40 @@
 import React, { useState } from 'react';
-import { FiSearch, FiMapPin, FiBriefcase } from 'react-icons/fi';
-import api from '../api';
+import { FiBriefcase, FiExternalLink, FiMapPin, FiSearch } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { fetchExternalJobs } from '../api';
+
+const sourceOptions = [
+  { value: 'all', label: 'All sources' },
+  { value: 'google', label: 'Google Jobs' },
+  { value: 'linkedin', label: 'LinkedIn-style' },
+  { value: 'remote', label: 'Remote boards' },
+  { value: 'internships', label: 'Internships' },
+];
+
+const jobTypeOptions = [
+  { value: '', label: 'All types' },
+  { value: 'full-time', label: 'Full-time' },
+  { value: 'part-time', label: 'Part-time' },
+  { value: 'internship', label: 'Internship' },
+  { value: 'remote', label: 'Remote' },
+];
+
+function sourceLabel(source) {
+  const labels = {
+    google_jobs: 'Google Jobs',
+    linkedin: 'LinkedIn-style',
+    jsearch: 'JSearch',
+    adzuna: 'Adzuna',
+    remotive: 'Remotive',
+  };
+  return labels[source] || source || 'External';
+}
 
 export default function ExternalJobsSearch() {
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('');
   const [jobType, setJobType] = useState('');
+  const [source, setSource] = useState('all');
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -19,80 +47,96 @@ export default function ExternalJobsSearch() {
 
     setLoading(true);
     try {
-      const params = {
-        q: query,
-        location,
-        type: jobType,
-      };
-      const response = await api.get('/jobs/external-jobs/', { params });
-      setJobs(response.data.results || []);
-      if (response.data.results.length === 0) {
+      const data = await fetchExternalJobs(query, location, jobType, source);
+      setJobs(data.results || []);
+
+      if (!data.results?.length) {
         toast.error('No jobs found');
+      } else if (data.errors?.length) {
+        toast.error('Some job sources could not be reached');
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Search failed');
+      toast.error(error.message || 'Search failed');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold text-gray-800 mb-2">Find External Jobs</h1>
-        <p className="text-gray-600 mb-8">Search from Google, LinkedIn, and remote job boards</p>
+    <div className="min-h-screen bg-slate-50 p-6">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-900">Live Company Jobs</h1>
+          <p className="mt-2 text-slate-600">
+            Search Google Jobs, LinkedIn-style listings, remote boards, and internship sources.
+          </p>
+        </div>
 
-        {/* Search Form */}
-        <form onSubmit={handleSearch} className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Job Title</label>
-              <div className="flex items-center bg-gray-100 rounded-lg px-4 py-3">
-                <FiSearch className="text-gray-400 mr-3" />
+        <form onSubmit={handleSearch} className="mb-8 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-slate-700">Job title</span>
+              <span className="flex items-center rounded-lg bg-slate-100 px-4 py-3">
+                <FiSearch className="mr-3 text-slate-400" />
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="e.g. React Developer"
-                  className="bg-transparent flex-1 outline-none text-gray-800"
+                  placeholder="React Developer"
+                  className="min-w-0 flex-1 bg-transparent text-slate-900 outline-none"
                 />
-              </div>
-            </div>
+              </span>
+            </label>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
-              <div className="flex items-center bg-gray-100 rounded-lg px-4 py-3">
-                <FiMapPin className="text-gray-400 mr-3" />
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-slate-700">Location</span>
+              <span className="flex items-center rounded-lg bg-slate-100 px-4 py-3">
+                <FiMapPin className="mr-3 text-slate-400" />
                 <input
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. USA, Remote"
-                  className="bg-transparent flex-1 outline-none text-gray-800"
+                  placeholder="USA or Remote"
+                  className="min-w-0 flex-1 bg-transparent text-slate-900 outline-none"
                 />
-              </div>
-            </div>
+              </span>
+            </label>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Job Type</label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-slate-700">Source</span>
+              <select
+                value={source}
+                onChange={(e) => setSource(e.target.value)}
+                className="w-full rounded-lg bg-slate-100 px-4 py-3 text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {sourceOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-slate-700">Job type</span>
               <select
                 value={jobType}
                 onChange={(e) => setJobType(e.target.value)}
-                className="w-full bg-gray-100 rounded-lg px-4 py-3 text-gray-800 outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg bg-slate-100 px-4 py-3 text-slate-900 outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">All Types</option>
-                <option value="full-time">Full-time</option>
-                <option value="part-time">Part-time</option>
-                <option value="internship">Internship</option>
-                <option value="remote">Remote</option>
+                {jobTypeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
-            </div>
+            </label>
 
             <div className="flex items-end">
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition"
+                className="w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
               >
                 {loading ? 'Searching...' : 'Search'}
               </button>
@@ -100,49 +144,49 @@ export default function ExternalJobsSearch() {
           </div>
         </form>
 
-        {/* Jobs List */}
-        <div className="grid gap-6">
+        <div className="grid gap-5">
           {jobs.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg shadow">
-              <FiBriefcase className="mx-auto text-4xl text-gray-300 mb-4" />
-              <p className="text-gray-500">
-                {loading ? 'Searching for jobs...' : 'Enter your search to find external jobs'}
+            <div className="rounded-lg border border-dashed border-slate-300 bg-white py-12 text-center">
+              <FiBriefcase className="mx-auto mb-4 text-4xl text-slate-300" />
+              <p className="text-slate-500">
+                {loading ? 'Searching live job sources...' : 'Enter a role to find live company jobs'}
               </p>
             </div>
           ) : (
             jobs.map((job, idx) => (
-              <div key={idx} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition">
-                <div className="flex justify-between items-start mb-4">
+              <article key={`${job.source}-${job.external_id || idx}`} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <h3 className="text-xl font-bold text-gray-800">{job.title}</h3>
-                    <p className="text-blue-600 font-semibold">{job.company}</p>
+                    <h3 className="text-xl font-bold text-slate-900">{job.title}</h3>
+                    <p className="font-semibold text-blue-700">{job.company}</p>
                   </div>
-                  <span className="text-xs bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-                    {job.source.toUpperCase()}
+                  <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                    {sourceLabel(job.source)}
                   </span>
                 </div>
 
-                <div className="flex flex-wrap gap-4 mb-4 text-sm text-gray-600">
+                <div className="mb-4 flex flex-wrap gap-3 text-sm text-slate-600">
                   <span className="flex items-center">
-                    <FiMapPin className="mr-2" /> {job.location}
+                    <FiMapPin className="mr-2" /> {job.location || 'Not specified'}
                   </span>
                   <span className="flex items-center">
-                    <FiBriefcase className="mr-2" /> {job.employment_type}
+                    <FiBriefcase className="mr-2" /> {job.employment_type || 'Role'}
                   </span>
-                  {job.is_remote && <span className="text-green-600 font-semibold">🌍 Remote</span>}
+                  {job.is_remote && <span className="font-semibold text-emerald-700">Remote</span>}
+                  {job.is_internship && <span className="font-semibold text-violet-700">Internship</span>}
                 </div>
 
-                <p className="text-gray-700 mb-4 line-clamp-2">{job.description}</p>
+                <p className="mb-4 line-clamp-2 text-slate-700">{job.description}</p>
 
                 <a
                   href={job.job_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition"
+                  className="inline-flex items-center rounded-lg bg-blue-600 px-5 py-2 font-semibold text-white transition hover:bg-blue-700"
                 >
-                  View Job →
+                  View job <FiExternalLink className="ml-2" />
                 </a>
-              </div>
+              </article>
             ))
           )}
         </div>

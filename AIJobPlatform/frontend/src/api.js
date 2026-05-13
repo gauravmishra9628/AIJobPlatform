@@ -10,6 +10,29 @@ const api = axios.create({
 });
 
 let refreshInFlight = null;
+const responseCache = new Map();
+const DEFAULT_CACHE_TTL = 60 * 1000;
+
+function cacheKey(url, params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return query ? `${url}?${query}` : url;
+}
+
+async function cachedGet(url, { headers = {}, params = {}, ttl = DEFAULT_CACHE_TTL } = {}) {
+  const key = cacheKey(url, params);
+  const cached = responseCache.get(key);
+  if (cached && Date.now() - cached.createdAt < ttl) {
+    return cached.data;
+  }
+
+  const { data } = await api.get(url, { headers, params });
+  responseCache.set(key, { data, createdAt: Date.now() });
+  return data;
+}
+
+export function clearApiCache() {
+  responseCache.clear();
+}
 
 function getStoredTokens() {
   const raw = localStorage.getItem("aijob_tokens");
@@ -137,6 +160,34 @@ export async function updateProfile(profileData) {
       headers,
     })
   );
+  clearApiCache();
+  return data;
+}
+
+export async function getPublicProfile(userId) {
+  const { data } = await api.get(`${API_AUTH_BASE}/profile/${userId}/`);
+  return data;
+}
+
+export async function getUserBadges(userId) {
+  const { data } = await api.get(`${API_AUTH_BASE}/users/${userId}/badges/`);
+  return data;
+}
+
+export async function verifySkillBadge(userId, payload) {
+  const { data } = await api.post(`${API_AUTH_BASE}/users/${userId}/badges/`, payload);
+  return data;
+}
+
+export async function uploadSkillCertificate(userId, formData) {
+  const { data } = await api.post(`${API_AUTH_BASE}/badges/upload/`, formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function connectGitHubBadges() {
+  const { data } = await api.post(`${API_AUTH_BASE}/badges/connect-github/`);
   return data;
 }
 
@@ -157,12 +208,7 @@ export async function logout() {
 }
 
 export async function listJobs() {
-  const { data } = await withSecureAuth((headers) =>
-    api.get(`${API_JOBS_BASE}/`, {
-      headers,
-    })
-  );
-  return data;
+  return withSecureAuth((headers) => cachedGet(`${API_JOBS_BASE}/`, { headers, ttl: 30 * 1000 }));
 }
 
 export async function createJob(jobData) {
@@ -171,28 +217,63 @@ export async function createJob(jobData) {
       headers,
     })
   );
+  clearApiCache();
+  return data;
+}
+
+export async function updateJob(jobId, jobData) {
+  const { data } = await withSecureAuth((headers) =>
+    api.patch(`${API_JOBS_BASE}/${jobId}/`, jobData, {
+      headers,
+    })
+  );
+  clearApiCache();
+  return data;
+}
+
+export async function deleteJob(jobId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.delete(`${API_JOBS_BASE}/${jobId}/`, {
+      headers,
+    })
+  );
+  clearApiCache();
   return data;
 }
 
 export async function myJobs() {
-  const { data } = await withSecureAuth((headers) =>
-    api.get(`${API_JOBS_BASE}/my/`, {
-      headers,
-    })
-  );
-  return data;
+  return withSecureAuth((headers) => cachedGet(`${API_JOBS_BASE}/my/`, { headers, ttl: 30 * 1000 }));
 }
 
-export async function applyToJob(jobId, coverNote = "") {
+export async function applyToJob(jobId, application = "") {
+  const payload =
+    typeof application === "string"
+      ? { cover_note: application }
+      : {
+          cover_note: application.cover_note || "",
+          candidate_summary: application.candidate_summary || "",
+          portfolio_url: application.portfolio_url || "",
+          expected_salary: application.expected_salary || "",
+        };
+
   const { data } = await withSecureAuth((headers) =>
     api.post(
       `${API_JOBS_BASE}/${jobId}/apply/`,
-      { cover_note: coverNote },
+      payload,
       {
         headers,
       }
     )
   );
+  clearApiCache();
+  return data;
+}
+
+export async function autoApplyJobs(payload = {}) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/applications/auto-apply/`, payload, { headers })
+  );
+  clearApiCache();
   return data;
 }
 
@@ -201,6 +282,13 @@ export async function listApplications() {
     api.get(`${API_JOBS_BASE}/applications/`, {
       headers,
     })
+  );
+  return data;
+}
+
+export async function getCandidateLeaderboard() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/leaderboard/`, { headers })
   );
   return data;
 }
@@ -215,6 +303,7 @@ export async function updateApplicationStatus(applicationId, status) {
       }
     )
   );
+  clearApiCache();
   return data;
 }
 
@@ -230,6 +319,7 @@ export async function uploadResume(file) {
       },
     })
   );
+  clearApiCache();
   return data;
 }
 
@@ -243,21 +333,11 @@ export async function latestResume() {
 }
 
 export async function getRecommendations() {
-  const { data } = await withSecureAuth((headers) =>
-    api.get(`${API_JOBS_BASE}/recommendations/`, {
-      headers,
-    })
-  );
-  return data;
+  return withSecureAuth((headers) => cachedGet(`${API_JOBS_BASE}/recommendations/`, { headers, ttl: 45 * 1000 }));
 }
 
 export async function getCareerGuidance() {
-  const { data } = await withSecureAuth((headers) =>
-    api.get(`${API_JOBS_BASE}/career-guidance/`, {
-      headers,
-    })
-  );
-  return data;
+  return withSecureAuth((headers) => cachedGet(`${API_JOBS_BASE}/career-guidance/`, { headers, ttl: 45 * 1000 }));
 }
 
 export async function listMessages() {
@@ -497,6 +577,13 @@ export async function generateCareerPlan(targetRole, currentLevel, goals = "") {
   return data;
 }
 
+export async function generateAIInterviewQuestions(payload) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/career/interview-questions/`, payload, { headers })
+  );
+  return data;
+}
+
 export async function getCareerCoach() {
   const { data } = await withSecureAuth((headers) =>
     api.get(`${API_JOBS_BASE}/career/coach/`, { headers })
@@ -634,6 +721,13 @@ export async function simulateVoiceInterview(role, transcript) {
   return data;
 }
 
+export async function analyzeMockInterview(payload) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/interview/mock-analyze/`, payload, { headers })
+  );
+  return data;
+}
+
 export async function simulateGroupDiscussion(topic, candidateResponse) {
   const { data } = await withSecureAuth((headers) =>
     api.post(
@@ -670,6 +764,45 @@ export async function getPersonalBrandingAssistant() {
   const { data } = await withSecureAuth((headers) =>
     api.get(`${API_JOBS_BASE}/branding/assistant/`, { headers })
   );
+  return data;
+}
+
+export async function generateCoverLetter(payload) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/career/cover-letter/`, payload, { headers })
+  );
+  return data;
+}
+
+export async function predictSalary(payload = {}) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/career/salary-prediction/`, payload, { headers })
+  );
+  return data;
+}
+
+export async function getCompanyProfile(companyId) {
+  const { data } = await api.get(`/api/companies/${companyId}/`);
+  return data;
+}
+
+export async function listCompanies(query = "") {
+  return cachedGet("/api/companies/", { params: query ? { q: query } : {}, ttl: 60 * 1000 });
+}
+
+export async function submitCompanyReview(companyId, review) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(
+      `/api/companies/${companyId}/reviews/`,
+      review,
+      { headers }
+    )
+  );
+  return data;
+}
+
+export async function getCompanyBadge(companyId) {
+  const { data } = await api.get(`/api/companies/${companyId}/badge/`);
   return data;
 }
 
@@ -714,6 +847,58 @@ export async function updateRecruiterDashboard(updates) {
   return data;
 }
 
+// ========== AI RESUME MATCH SCORE API ==========
+export async function uploadMatchResume(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/resume/match/upload/`, formData, {
+      headers: {
+        ...headers,
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  );
+  clearApiCache();
+  return data;
+}
+
+export async function calculateResumeMatch(resumeId, jobDescription) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(
+      `${API_JOBS_BASE}/resume/match/calculate/`,
+      {
+        resume_id: resumeId,
+        job_description: jobDescription
+      },
+      { headers }
+    )
+  );
+  return data;
+}
+
+export async function getUserResumes() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/resume/match/list/`, { headers })
+  );
+  return data;
+}
+
+export async function getResumeMatches(resumeId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/resume/${resumeId}/matches/`, { headers })
+  );
+  return data;
+}
+
+export async function getMatchDetails(matchId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/resume-match/${matchId}/`, { headers })
+  );
+  return data;
+}
+
 export async function saveFavoriteJob(jobId, action = "add") {
   const { data } = await withSecureAuth((headers) =>
     api.post(
@@ -732,10 +917,10 @@ export function hasSession() {
 // ========== NEW FEATURE API HELPERS ==========
 
 // 1. External Jobs API
-export async function fetchExternalJobs(query, location = "", jobType = "") {
+export async function fetchExternalJobs(query, location = "", jobType = "", source = "all") {
   const { data } = await withSecureAuth((headers) =>
     api.get(`${API_JOBS_BASE}/external-jobs/`, {
-      params: { q: query, location, type: jobType },
+      params: { q: query, location, type: jobType, source },
       headers,
     })
   );
@@ -844,3 +1029,41 @@ export async function getChatHistory(recipientId) {
   );
   return data;
 }
+
+export async function getBillingOverview() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/billing/overview/`, { headers })
+  );
+  return data;
+}
+
+export async function createBillingCheckout(plan, provider = "stripe") {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/billing/checkout/`, { plan, provider }, { headers })
+  );
+  return data;
+}
+
+export async function confirmBillingCheckout(transactionId, providerPayload = {}) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(
+      `${API_JOBS_BASE}/billing/checkout/confirm/`,
+      { transaction_id: transactionId, ...providerPayload },
+      { headers }
+    )
+  );
+  return data;
+}
+
+export async function recordUsage(usageType = "ai", amount = 1, metadata = {}) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(
+      `${API_JOBS_BASE}/billing/usage/`,
+      { usage_type: usageType, amount, metadata },
+      { headers }
+    )
+  );
+  return data;
+}
+
+export default api;
