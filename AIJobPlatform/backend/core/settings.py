@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,9 +39,13 @@ INSTALLED_APPS = [
     'jobs',
 ]
 
+REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+USE_REDIS = os.environ.get("USE_REDIS", "False") == "True"
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'core.middleware.SimpleCorsMiddleware',
+    'core.middleware.ApiRateLimitMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -73,12 +78,28 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
+if DATABASE_URL:
+    parsed_database_url = urlparse(DATABASE_URL)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": parsed_database_url.path.lstrip("/"),
+            "USER": parsed_database_url.username or "",
+            "PASSWORD": parsed_database_url.password or "",
+            "HOST": parsed_database_url.hostname or "",
+            "PORT": parsed_database_url.port or "",
+            "OPTIONS": {"sslmode": os.environ.get("POSTGRES_SSLMODE", "require")},
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': os.environ.get("SQLITE_DB_PATH", BASE_DIR / 'db.sqlite3'),
+        }
+    }
 
 
 # Password validation
@@ -145,6 +166,13 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "False") == "True"
 X_FRAME_OPTIONS = "DENY"
+SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get("DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", "False") == "True"
+SECURE_HSTS_PRELOAD = os.environ.get("DJANGO_SECURE_HSTS_PRELOAD", "False") == "True"
+API_RATE_LIMIT_PER_MINUTE = int(os.environ.get("API_RATE_LIMIT_PER_MINUTE", "120"))
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get("DATA_UPLOAD_MAX_MEMORY_SIZE", str(5 * 1024 * 1024)))
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get("FILE_UPLOAD_MAX_MEMORY_SIZE", str(5 * 1024 * 1024)))
+ALLOWED_RESUME_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt"}
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
@@ -168,15 +196,48 @@ DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "AI Job Portal <norepl
 # Channels & WebSockets Configuration
 ASGI_APPLICATION = "core.asgi.application"
 
-CHANNEL_LAYERS = {
+if USE_REDIS:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
+        }
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer"
+        }
+    }
+
+CACHES = {
     "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"
+        "BACKEND": "django.core.cache.backends.redis.RedisCache" if USE_REDIS else "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": REDIS_URL if USE_REDIS else "aijobplatform-local-cache",
+        "KEY_PREFIX": os.environ.get("CACHE_KEY_PREFIX", "aijobplatform"),
+        "TIMEOUT": int(os.environ.get("CACHE_TIMEOUT_SECONDS", "300")),
     }
 }
+
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", REDIS_URL)
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", REDIS_URL)
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
 
 # API Keys for External Services
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 GOOGLE_GEMINI_KEY = os.environ.get("GOOGLE_GEMINI_KEY", "")
+ENABLE_SENTENCE_TRANSFORMERS = os.environ.get("ENABLE_SENTENCE_TRANSFORMERS", "False") == "True"
 JSEARCH_API_KEY = os.environ.get("JSEARCH_API_KEY", "")
 ADZUNA_API_ID = os.environ.get("ADZUNA_API_ID", "")
 ADZUNA_API_KEY = os.environ.get("ADZUNA_API_KEY", "")
+SERPAPI_API_KEY = os.environ.get("SERPAPI_API_KEY", "")
+GOOGLE_JOBS_API_KEY = os.environ.get("GOOGLE_JOBS_API_KEY", "")
+LINKEDIN_JOBS_API_KEY = os.environ.get("LINKEDIN_JOBS_API_KEY", "")
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "")

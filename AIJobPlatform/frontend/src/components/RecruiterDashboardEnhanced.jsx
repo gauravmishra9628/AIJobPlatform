@@ -4,6 +4,7 @@ import {
   updateRecruiterDashboard,
   saveFavoriteJob,
 } from "../api";
+import RecruiterAssistant from "./RecruiterAssistant";
 
 export default function RecruiterDashboardEnhanced() {
   const [dashboard, setDashboard] = useState(null);
@@ -83,6 +84,12 @@ export default function RecruiterDashboardEnhanced() {
           onClick={() => setActiveTab("schedule")}
         >
           Schedule
+        </button>
+        <button
+          className={activeTab === "assistant" ? "active" : ""}
+          onClick={() => setActiveTab("assistant")}
+        >
+          AI Assistant
         </button>
       </div>
 
@@ -261,6 +268,12 @@ export default function RecruiterDashboardEnhanced() {
             ) : (
               <p className="empty-state">No scheduled interviews</p>
             )}
+          </div>
+        )}
+
+        {activeTab === "assistant" && (
+          <div className="assistant-section">
+            <RecruiterAssistant />
           </div>
         )}
       </div>

@@ -59,10 +59,12 @@ import {
 } from "./api";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from "react-router-dom";
 import ResumeMatch from "./components/ResumeMatch";
+import ResumeJobComparator from "./components/ResumeJobComparator";
 import RecruiterAnalytics from "./components/RecruiterAnalytics";
 import PublicProfilePage from "./components/PublicProfilePage";
 import CandidateLeaderboard from "./components/CandidateLeaderboard";
 import AutoApplyPanel from "./components/AutoApplyPanel";
+import RecruiterAssistant from "./components/RecruiterAssistant";
 
 const CompanyProfile = lazy(() => import("./components/CompanyProfile"));
 
@@ -1677,6 +1679,7 @@ function ModernSaaSPage() {
   const navigate = useNavigate();
   const [billing, setBilling] = useState(saasFallback);
   const [query, setQuery] = useState("");
+  const [companySearch, setCompanySearch] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [provider, setProvider] = useState("stripe");
   const [status, setStatus] = useState("Open the command palette with Ctrl+K.");
@@ -1985,9 +1988,9 @@ function CompanyDirectoryPage() {
           </div>
           <label className="field" style={{ minWidth: 280 }}>
             <span>Search company</span>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Acme Labs" />
+            <input value={companySearch} onChange={(event) => setCompanySearch(event.target.value)} placeholder="Acme Labs" />
           </label>
-          <button className="ghostButton fitButton" type="button" onClick={() => loadCompanies(query)}>
+          <button className="ghostButton fitButton" type="button" onClick={() => loadCompanies(companySearch)}>
             Search
           </button>
         </div>
@@ -3219,6 +3222,7 @@ export default function App() {
     const isDashboardView = view === "dashboard";
     const isJobsView = view === "jobs";
     const isApplicantsView = view === "applicants";
+    const isAssistantView = view === "assistant";
 
     useEffect(() => {
       if (!selectedCompany) {
@@ -3316,6 +3320,7 @@ export default function App() {
           <div className="buttonRow">
             <Link className="secondaryLink" to="/recruiter/jobs">Manage jobs</Link>
             <Link className="secondaryLink" to="/recruiter/applicants">Review applicants</Link>
+            <Link className="secondaryLink" to="/recruiter/assistant">AI assistant</Link>
           </div>
         </section>
       );
@@ -3460,6 +3465,10 @@ export default function App() {
       );
     }
 
+    function renderAssistantManager() {
+      return <RecruiterAssistant />;
+    }
+
     return (
       <div className="dashboardLayout twoColumns">
         <ProfileRail />
@@ -3467,6 +3476,7 @@ export default function App() {
           {renderDashboardSummary()}
           {isDashboardView || isJobsView ? renderJobManager() : null}
           {isDashboardView || isApplicantsView ? renderApplicantManager() : null}
+          {isDashboardView || isAssistantView ? renderAssistantManager() : null}
           <SmartAIStudio
             careerCoach={careerCoach}
             careerPathPrediction={careerPathPrediction}
@@ -3693,6 +3703,16 @@ export default function App() {
           }
         />
         <Route
+          path="/recruiter/assistant"
+          element={
+            <ProtectedRoute profile={profile}>
+              <RoleRoute profile={profile} roles={["recruiter", "admin"]}>
+                <RecruiterDashboardPage view="assistant" />
+              </RoleRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/profile"
           element={
             <ProtectedRoute profile={profile}>
@@ -3705,6 +3725,14 @@ export default function App() {
           element={
             <ProtectedRoute profile={profile}>
               <ResumeMatch />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/resume-comparator"
+          element={
+            <ProtectedRoute profile={profile}>
+              <ResumeJobComparator />
             </ProtectedRoute>
           }
         />

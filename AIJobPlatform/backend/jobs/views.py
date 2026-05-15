@@ -1,8 +1,11 @@
 import json
 import re
+from pathlib import Path
+from django.http import FileResponse
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.db.models import F, Q
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -10,7 +13,10 @@ from django.views.decorators.http import require_http_methods
 from accounts.decorators import jwt_required, role_required
 from accounts.models import User
 
-from .models import JobApplication, JobPost, NetworkMessage, Resume
+from .models import AutoApplyRun, JobApplication, JobPost, NetworkMessage, Resume
+from .models import AIResumeAnalysis
+from core.pdf_generator import PDFResumeGenerator
+from core.ai_integrations import AIIntegrationService
 
 
 TOKEN_PATTERN = re.compile(r"[a-zA-Z]{3,}")
@@ -65,6 +71,7 @@ def job_payload(job):
         "employment_type": job.employment_type,
         "salary_range": job.salary_range,
         "is_active": job.is_active,
+        "views_count": job.views_count,
         "posted_by": {
             "id": job.posted_by_id,
             "email": job.posted_by.email,
@@ -108,6 +115,9 @@ def application_payload(application):
         "applicant": user_summary(application.applicant),
         "resume": resume_payload(application.resume),
         "cover_note": application.cover_note,
+        "candidate_summary": application.candidate_summary,
+        "portfolio_url": application.portfolio_url,
+        "expected_salary": application.expected_salary,
         "match_score": application.match_score,
         "status": application.status,
         "created_at": application.created_at.isoformat(),
@@ -191,13 +201,49 @@ def score_job_for_user(job, user, resume=None):
     return score_job_for_resume(job, tokens)
 
 
+def paginate_queryset(request, queryset, default_page_size=20, max_page_size=50):
+    try:
+        page = max(int(request.GET.get("page", "1")), 1)
+        page_size = min(max(int(request.GET.get("page_size", str(default_page_size))), 1), max_page_size)
+    except ValueError:
+        page = 1
+        page_size = default_page_size
+
+    total = queryset.count()
+    start = (page - 1) * page_size
+    end = start + page_size
+    return queryset[start:end], {
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "has_next": end < total,
+    }
+
+
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 @jwt_required
 def jobs_collection(request):
     if request.method == "GET":
         jobs = JobPost.objects.filter(is_active=True).select_related("posted_by")
-        return JsonResponse({"jobs": [job_payload(job) for job in jobs]})
+        query = request.GET.get("q", "").strip()
+        location = request.GET.get("location", "").strip()
+        employment_type = request.GET.get("type", "").strip()
+
+        if query:
+            jobs = jobs.filter(
+                Q(title__icontains=query)
+                | Q(company__icontains=query)
+                | Q(description__icontains=query)
+                | Q(skills_required__icontains=query)
+            )
+        if location:
+            jobs = jobs.filter(location__icontains=location)
+        if employment_type in JobPost.EmploymentType.values:
+            jobs = jobs.filter(employment_type=employment_type)
+
+        page_jobs, pagination = paginate_queryset(request, jobs)
+        return JsonResponse({"jobs": [job_payload(job) for job in page_jobs], "pagination": pagination})
 
     if request.user.role not in (User.Role.RECRUITER, User.Role.ADMIN):
         return JsonResponse({"detail": "Only recruiters and admins can post jobs."}, status=403)
@@ -236,6 +282,72 @@ def jobs_collection(request):
 
 
 @csrf_exempt
+@require_http_methods(["GET", "PUT", "PATCH", "DELETE"])
+@jwt_required
+def job_detail(request, job_id):
+    try:
+        job = JobPost.objects.select_related("posted_by").get(pk=job_id)
+    except JobPost.DoesNotExist:
+        return JsonResponse({"detail": "Job not found."}, status=404)
+
+    if request.user.role not in (User.Role.RECRUITER, User.Role.ADMIN):
+        return JsonResponse({"detail": "Only recruiters and admins can manage jobs."}, status=403)
+
+    if request.user.role != User.Role.ADMIN and job.posted_by_id != request.user.id:
+        return JsonResponse({"detail": "You can only manage your own jobs."}, status=403)
+
+    if request.method == "GET":
+        JobPost.objects.filter(pk=job.pk).update(views_count=F("views_count") + 1)
+        job.refresh_from_db(fields=["views_count"])
+        return JsonResponse({"job": job_payload(job)})
+
+    if request.method == "DELETE":
+        job.is_active = False
+        job.save(update_fields=["is_active", "updated_at"])
+        return JsonResponse({"detail": "Job deleted.", "job": job_payload(job)})
+
+    try:
+        data = parse_json(request)
+    except ValueError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
+
+    title = data.get("title", job.title).strip()
+    company = data.get("company", job.company).strip() or job.company
+    location = data.get("location", job.location).strip()
+    description = data.get("description", job.description).strip()
+
+    if not title or not location or not description:
+        return JsonResponse({"detail": "title, location, and description are required."}, status=400)
+
+    employment_type = data.get("employment_type", job.employment_type)
+    if employment_type not in JobPost.EmploymentType.values:
+        employment_type = job.employment_type
+
+    job.title = title
+    job.company = company
+    job.location = location
+    job.description = description
+    job.skills_required = data.get("skills_required", job.skills_required).strip()
+    job.employment_type = employment_type
+    job.salary_range = data.get("salary_range", job.salary_range).strip()
+    job.is_active = data.get("is_active", job.is_active)
+    job.save(
+        update_fields=[
+            "title",
+            "company",
+            "location",
+            "description",
+            "skills_required",
+            "employment_type",
+            "salary_range",
+            "is_active",
+            "updated_at",
+        ]
+    )
+    return JsonResponse({"detail": "Job updated successfully.", "job": job_payload(job)})
+
+
+@csrf_exempt
 @require_http_methods(["POST"])
 @role_required(User.Role.STUDENT)
 def apply_to_job(request, job_id):
@@ -256,6 +368,9 @@ def apply_to_job(request, job_id):
         defaults={
             "resume": resume,
             "cover_note": data.get("cover_note", "").strip(),
+            "candidate_summary": data.get("candidate_summary", "").strip(),
+            "portfolio_url": data.get("portfolio_url", "").strip(),
+            "expected_salary": data.get("expected_salary", "").strip(),
             "match_score": score_job_for_user(job, request.user, resume),
         },
     )
@@ -263,6 +378,69 @@ def apply_to_job(request, job_id):
         return JsonResponse({"detail": "You already applied to this job.", "application": application_payload(application)}, status=409)
 
     return JsonResponse({"detail": "Application submitted.", "application": application_payload(application)}, status=201)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@jwt_required
+@role_required(User.Role.STUDENT)
+def auto_apply_jobs(request):
+    try:
+        data = parse_json(request)
+    except ValueError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
+
+    threshold = int(data.get("threshold") or 80)
+    max_applications = int(data.get("limit") or 10)
+    resume = Resume.objects.filter(user=request.user).first()
+    if not resume:
+        return JsonResponse({"detail": "Upload a resume before auto applying."}, status=400)
+
+    from .ai_views import calculate_ai_match
+
+    applied_jobs = []
+    skipped_jobs = []
+    candidate_jobs = JobPost.objects.filter(is_active=True).select_related("posted_by")[:80]
+    for job in candidate_jobs:
+        if len(applied_jobs) >= max_applications:
+            break
+
+        score = score_job_for_user(job, request.user, resume)
+        if score < threshold:
+            skipped_jobs.append({"job_id": job.id, "title": job.title, "match_score": score})
+            continue
+
+        application, created = JobApplication.objects.get_or_create(
+            job=job,
+            applicant=request.user,
+            defaults={
+                "resume": resume,
+                "cover_note": data.get("cover_note", "").strip() or "Applied automatically by AI from the resume match flow.",
+                "candidate_summary": data.get("candidate_summary", "").strip(),
+                "portfolio_url": data.get("portfolio_url", "").strip(),
+                "expected_salary": data.get("expected_salary", "").strip(),
+                "match_score": score,
+            },
+        )
+        if created:
+            applied_jobs.append({"job_id": job.id, "title": job.title, "match_score": score, "application_id": application.id})
+        else:
+            skipped_jobs.append({"job_id": job.id, "title": job.title, "match_score": score, "reason": "already_applied"})
+
+    AutoApplyRun.objects.create(
+        user=request.user,
+        resume=resume,
+        threshold=threshold,
+        applied_jobs=applied_jobs,
+        skipped_jobs=skipped_jobs,
+    )
+
+    return JsonResponse({
+        "detail": f"Auto applied to {len(applied_jobs)} jobs.",
+        "applied_jobs": applied_jobs,
+        "skipped_jobs": skipped_jobs[:20],
+        "threshold": threshold,
+    })
 
 
 @csrf_exempt
@@ -276,7 +454,8 @@ def applications_collection(request):
     else:
         applications = JobApplication.objects.none()
 
-    return JsonResponse({"applications": [application_payload(item) for item in applications]})
+    page_applications, pagination = paginate_queryset(request, applications)
+    return JsonResponse({"applications": [application_payload(item) for item in page_applications], "pagination": pagination})
 
 
 @csrf_exempt
@@ -315,7 +494,8 @@ def my_jobs(request):
         return JsonResponse({"detail": "Only recruiters and admins can view posted jobs."}, status=403)
 
     jobs = JobPost.objects.filter(posted_by=request.user).select_related("posted_by")
-    return JsonResponse({"jobs": [job_payload(job) for job in jobs]})
+    page_jobs, pagination = paginate_queryset(request, jobs)
+    return JsonResponse({"jobs": [job_payload(job) for job in page_jobs], "pagination": pagination})
 
 
 @csrf_exempt
@@ -325,6 +505,17 @@ def upload_resume(request):
     uploaded = request.FILES.get("resume")
     if not uploaded:
         return JsonResponse({"detail": "resume file is required."}, status=400)
+
+    max_size = settings.FILE_UPLOAD_MAX_MEMORY_SIZE
+    extension = Path(uploaded.name).suffix.lower()
+    allowed_extensions = getattr(settings, "ALLOWED_RESUME_EXTENSIONS", {".pdf", ".doc", ".docx", ".txt"})
+
+    if extension not in allowed_extensions:
+        return JsonResponse({"detail": "Only PDF, DOC, DOCX, and TXT resumes are allowed."}, status=400)
+
+    if uploaded.size > max_size:
+        size_mb = max_size // (1024 * 1024)
+        return JsonResponse({"detail": f"Resume file must be {size_mb}MB or smaller."}, status=400)
 
     preview_bytes = uploaded.read(250000)
     try:
@@ -359,6 +550,95 @@ def latest_resume(request):
         return JsonResponse({"resume": None})
 
     return JsonResponse({"resume": resume_payload(resume, request)})
+
+
+@require_http_methods(["GET"])
+@jwt_required
+def download_resume_pdf(request, resume_id):
+    """Download resume as PDF"""
+    try:
+        resume = Resume.objects.get(id=resume_id, user=request.user)
+    except Resume.DoesNotExist:
+        return JsonResponse({"error": "Resume not found"}, status=404)
+    
+    try:
+        # Get resume data from template if available
+        resume_template = resume.user.resume_template if hasattr(resume.user, 'resume_template') else None
+        
+        if resume_template:
+            resume_data = {
+                "full_name": resume_template.full_name,
+                "email": resume_template.email,
+                "phone": resume_template.phone,
+                "location": resume_template.location,
+                "professional_summary": resume_template.professional_summary,
+                "experience": resume_template.experience,
+                "education": resume_template.education,
+                "skills": resume_template.skills,
+                "certifications": resume_template.certifications,
+                "projects": resume_template.projects,
+                "headline": request.user.profile.headline if hasattr(request.user, 'profile') else "",
+            }
+        else:
+            # Create basic resume data from extracted information
+            resume_data = {
+                "full_name": f"{request.user.first_name} {request.user.last_name}".strip() or request.user.email,
+                "email": request.user.email,
+                "phone": "",
+                "location": request.user.profile.location if hasattr(request.user, 'profile') else "",
+                "professional_summary": request.user.profile.bio if hasattr(request.user, 'profile') else "",
+                "experience": [],
+                "education": [],
+                "skills": resume.extracted_skills or [],
+                "certifications": [],
+                "projects": [],
+                "headline": request.user.profile.headline if hasattr(request.user, 'profile') else "",
+            }
+        
+        # Generate PDF
+        pdf_buffer = PDFResumeGenerator.generate_resume_pdf(resume_data)
+        
+        # Return as download
+        response = FileResponse(pdf_buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="Resume_{request.user.email}.pdf"'
+        return response
+        
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@jwt_required
+def download_resume_pdf_from_template(request):
+    """Generate and download PDF from resume template data"""
+    try:
+        data = parse_json(request)
+        
+        resume_data = {
+            "full_name": data.get("full_name", f"{request.user.first_name} {request.user.last_name}".strip() or request.user.email),
+            "email": data.get("email", request.user.email),
+            "phone": data.get("phone", ""),
+            "location": data.get("location", ""),
+            "professional_summary": data.get("professional_summary", ""),
+            "experience": data.get("experience", []),
+            "education": data.get("education", []),
+            "skills": data.get("skills", []),
+            "certifications": data.get("certifications", []),
+            "projects": data.get("projects", []),
+            "headline": data.get("headline", ""),
+        }
+        
+        # Generate PDF
+        pdf_buffer = PDFResumeGenerator.generate_resume_pdf(resume_data)
+        
+        # Return as download
+        response = FileResponse(pdf_buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="Resume_{request.user.email}.pdf"'
+        return response
+        
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @require_http_methods(["GET"])
@@ -398,9 +678,21 @@ def career_guidance(request):
     skills = set(getattr(profile, "skills", []) or [])
     skills.update(resume.extracted_skills if resume else [])
     skill_list = sorted(skills)
+    profile_strength = int((
+        bool(getattr(profile, "headline", ""))
+        + bool(getattr(profile, "location", ""))
+        + bool(skill_list)
+        + bool(getattr(profile, "bio", ""))
+        + bool(getattr(profile, "github_url", "") or getattr(profile, "linkedin_url", ""))
+        + bool(resume)
+    ) / 6 * 100)
+
+    resume_analysis = AIResumeAnalysis.objects.filter(resume=resume).first() if resume else None
+    resume_rating = resume_analysis.overall_rating if resume_analysis else min(95, 40 + len(skill_list) * 5 + (10 if resume else 0))
 
     recommendations_payload = []
-    for job in JobPost.objects.filter(is_active=True).select_related("posted_by")[:5]:
+    active_jobs = list(JobPost.objects.filter(is_active=True).select_related("posted_by")[:8])
+    for job in active_jobs[:5]:
         score = score_job_for_user(job, request.user, resume)
         missing = sorted(set(extract_skills(job.skills_required)) - set(skill_list))
         recommendations_payload.append(
@@ -410,6 +702,28 @@ def career_guidance(request):
                 "missing_skills": missing[:5],
             }
         )
+
+    job_alerts = []
+    for job in active_jobs[:3]:
+        score = score_job_for_user(job, request.user, resume)
+        if score < 3:
+            continue
+        job_alerts.append(
+            {
+                "job": job_payload(job),
+                "match_score": score,
+                "message": f"You are {score}% match for {job.title} at {job.company}.",
+            }
+        )
+
+    weekly_tips = [
+        "Apply to your highest-match roles first to improve shortlist chances.",
+        "Use project outcomes and measurable impact in your resume summary.",
+    ]
+    if skill_list:
+        weekly_tips.insert(0, f"Double down on {skill_list[0]} with a small portfolio project or certification.")
+    if not resume:
+        weekly_tips.insert(0, "Upload a resume to unlock AI rating, match alerts, and stronger job recommendations.")
 
     roadmap = [
         "Complete headline, location, portfolio links, and top skills.",
@@ -427,10 +741,16 @@ def career_guidance(request):
             "skills": skill_list,
             "roadmap": roadmap,
             "role_targets": recommendations_payload,
+            "recommended_jobs": recommendations_payload,
             "growth_insights": [
                 "Your best matches come from overlap between resume keywords, profile skills, and job requirements.",
                 "Recruiters see stronger signal when applications include a focused note and current resume.",
             ],
+            "profile_strength": profile_strength,
+            "resume_rating": resume_rating,
+            "weekly_tips": weekly_tips,
+            "job_alerts": job_alerts,
+            "next_best_job": job_alerts[0] if job_alerts else None,
         }
     )
 

@@ -11,11 +11,42 @@ contains older starter files kept only for reference.
 ## Tech Stack
 
 - Backend: Django 5, Django REST Framework, Django Channels, SQLite
-- Frontend: React 18, Vite, Axios, React Router, Framer Motion, Recharts
+- Frontend: React 18, Vite, Axios, React Router, Framer Motion, Recharts, i18next
+- Mobile: React Native + Expo
 - Auth: Custom Django user model with JWT-style access and refresh tokens
 - Realtime: Django Channels with an in-memory channel layer for development
 - AI and integrations: OpenAI/Gemini-ready settings, external job API hooks,
   resume parsing and scoring utilities
+
+## New Features (v2.0)
+
+### Multi-Language Support
+- 5 languages: English, Spanish, French, Hindi, Chinese
+- Language selector in navigation
+- Persisted language preference
+
+### AI Chatbot
+- Floating widget on all pages
+- Career coaching, job search, interview prep
+- Mobile-optimized chat screen
+- Integration with AI Career Coach API
+
+### Recruiter SaaS
+- 3-tier pricing: Starter (Free), Professional ($49/mo), Enterprise ($199/mo)
+- Monthly/yearly billing toggle with 20% discount
+- Feature comparison matrix
+
+### Advanced Analytics
+- Hiring trends with area charts
+- Skill demand visualization
+- Candidate source breakdown
+- Performance metrics tracking
+
+### Mobile App
+- React Native + Expo
+- Login, Jobs, Applications, Profile, Chat screens
+- Secure token storage
+- Bottom tab navigation
 
 ## Project Structure
 
@@ -290,3 +321,41 @@ Potential next areas are listed in detail in `AIJobPlatform/FEATURES.md`,
 including OAuth login, video interviews, coding assessments, certificate
 verification, company integrations, subscription plans, live job feeds, salary
 intelligence, and richer AI hiring analytics.
+
+## Screenshots
+
+### Student Dashboard
+![Student Dashboard](docs/screenshots/student-dashboard.png)
+
+### Recruiter Dashboard
+![Recruiter Dashboard](docs/screenshots/recruiter-dashboard.png)
+
+### AI Job Matching
+![AI Matching](docs/screenshots/ai-matching.png)
+
+### Resume Analysis
+![Resume Analysis](docs/screenshots/resume-analysis.png)
+
+## Production & Portfolio
+
+- Deployment guide: `AIJobPlatform/DEPLOYMENT.md`
+- API docs: `AIJobPlatform/API_DOCS.md`
+- Portfolio/demo plan: `AIJobPlatform/PORTFOLIO.md`
+- Demo script: `AIJobPlatform/DEMO_PRESENTATION.md`
+- Vercel config: `AIJobPlatform/frontend/vercel.json`
+- Render blueprint: `AIJobPlatform/backend/render.yaml`
+
+## Pre-Launch Checklist
+
+- [x] Authentication working (JWT tokens, role-based access)
+- [x] Resume upload working (PDF parsing, ATS scoring)
+- [x] AI matching working (skill matching, semantic similarity)
+- [x] APIs connected (50+ endpoints)
+- [x] Frontend responsive (Tailwind CSS, mobile-first)
+- [x] Proper loading states (skeleton loaders, spinners)
+- [x] Error handling (toast notifications, error states)
+- [x] Clean dashboard UI (Framer Motion animations)
+- [x] README complete (docs, setup, API reference)
+- [ ] Screenshots added (placeholder links in docs/)
+- [ ] GitHub repo clean (no node_modules, .venv, db.sqlite3)
+- [ ] Live deployment working (Vercel + Render)

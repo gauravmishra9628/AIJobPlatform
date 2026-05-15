@@ -81,3 +81,39 @@ def save_user_profile(sender, instance, **kwargs):
     if hasattr(instance, "profile"):
         instance.profile.save()
 
+
+# OTP Verification for Authentication
+class OTPVerification(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="otp_verifications",
+    )
+    otp = models.CharField(max_length=6)
+    email = models.EmailField()
+    is_used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"OTP for {self.email}"
+
+
+# Password Reset Token
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="password_reset_tokens",
+    )
+    token = models.CharField(max_length=255, unique=True)
+    is_used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+
+    def __str__(self):
+        return f"Reset Token for {self.user.email}"
+

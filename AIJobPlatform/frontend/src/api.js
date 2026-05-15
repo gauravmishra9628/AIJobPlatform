@@ -527,6 +527,39 @@ export async function getHiringTrends(days = 30) {
   return data;
 }
 
+// ========== RECRUITER ASSISTANT API ==========
+export async function submitRecruiterQuery(queryText) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(
+      `${API_JOBS_BASE}/recruiter/query/`,
+      { query_text: queryText },
+      { headers }
+    )
+  );
+  return data;
+}
+
+export async function refineRecruiterQuery(queryId, payload = {}) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/recruiter/query/${queryId}/refine/`, payload, { headers })
+  );
+  return data;
+}
+
+export async function autoShortlistCandidates(jobId, count = 10) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/recruiter/shortlist/auto/`, { job_id: jobId, count }, { headers })
+  );
+  return data;
+}
+
+export async function getRecruiterQueryPatterns() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/recruiter/analytics/query-patterns/`, { headers })
+  );
+  return data;
+}
+
 // ========== AI RESUME ANALYZER API ==========
 export async function analyzeResumeAI(resumeId) {
   const { data } = await withSecureAuth((headers) =>
@@ -781,6 +814,243 @@ export async function predictSalary(payload = {}) {
   return data;
 }
 
+// ========== SMART CAREER GRAPH API ==========
+
+export async function getCareerGraph() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/career/graph/`, { headers })
+  );
+  return data;
+}
+
+export async function getCareerPaths() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/career/paths/`, { headers })
+  );
+  return data;
+}
+
+export async function generateCareerPath(targetRole) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/career/path/generate/`, { target_role: targetRole }, { headers })
+  );
+  return data;
+}
+
+export async function updateSkillProgress(skillId, progress, milestones = []) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/career/skill/update-progress/`,
+      { skill_id: skillId, progress, milestones },
+      { headers })
+  );
+  return data;
+}
+
+export async function getSkillNodes(category = "") {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/skills/`, { headers, params: category ? { category } : {} })
+  );
+  return data;
+}
+
+// ========== RESUME vs JOB COMPARATOR ==========
+
+export async function compareResumeJob(resumeId, jobId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/compare/resume-job/`,
+      { resume_id: resumeId, job_id: jobId },
+      { headers })
+  );
+  return data;
+}
+
+// ========== RECRUITER CANDIDATE SEARCH ==========
+
+export async function searchRecruiterCandidates(query = "", filters = {}) {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/recruiter/candidates/`,
+      { headers, params: { q: query, ...filters } })
+  );
+  return data;
+}
+
+// ========== AI CODING TEST PLATFORM ==========
+
+export async function getCodingQuestions(filters = {}) {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/coding/questions/`, { headers, params: filters })
+  );
+  return data;
+}
+
+export async function getCodingQuestionDetail(questionId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/coding/questions/${questionId}/`, { headers })
+  );
+  return data;
+}
+
+export async function submitCode(questionId, code, language) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/coding/submit/`,
+      { question_id: questionId, code, language },
+      { headers })
+  );
+  return data;
+}
+
+export async function getCodeSubmissions(userId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/coding/submissions/`, { headers, params: { user_id: userId } })
+  );
+  return data;
+}
+
+export async function getCodingContests() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/coding/contests/`, { headers })
+  );
+  return data;
+}
+
+export async function joinContest(contestId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/coding/contests/${contestId}/join/`, {}, { headers })
+  );
+  return data;
+}
+
+export async function getContestLeaderboard(contestId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/coding/contests/${contestId}/leaderboard/`, { headers })
+  );
+  return data;
+}
+
+// ========== VOICE CAREER COACH ==========
+
+export async function startVoiceSession(sessionType) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/voice/session/start/`, { session_type: sessionType }, { headers })
+  );
+  return data;
+}
+
+export async function processVoiceTranscript(sessionId, transcript) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/voice/transcript/process/`,
+      { session_id: sessionId, transcript },
+      { headers })
+  );
+  return data;
+}
+
+export async function endVoiceSession(sessionId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/voice/session/end/`, { session_id: sessionId }, { headers })
+  );
+  return data;
+}
+
+export async function getVoiceSessions() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/voice/sessions/`, { headers })
+  );
+  return data;
+}
+
+// ========== PERSONALITY ANALYZER ==========
+
+export async function analyzePersonality(userId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/personality/analyze/`, { user_id: userId }, { headers })
+  );
+  return data;
+}
+
+export async function getPersonalityProfile(userId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/personality/profile/${userId}/`, { headers })
+  );
+  return data;
+}
+
+// ========== GAMIFICATION SYSTEM ==========
+
+export async function getGameProfile() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/game/profile/`, { headers })
+  );
+  return data;
+}
+
+export async function awardXP(activityType) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/game/xp/award/`, { activity_type: activityType }, { headers })
+  );
+  return data;
+}
+
+export async function getGameLeaderboard(timeframe = "all") {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/game/leaderboard/`, { headers, params: { timeframe } })
+  );
+  return data;
+}
+
+export async function getDailyChallenges() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/game/challenges/daily/`, { headers })
+  );
+  return data;
+}
+
+export async function completeChallenge(challengeId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/game/challenges/complete/`, { challenge_id: challengeId }, { headers })
+  );
+  return data;
+}
+
+// ========== ADVANCED SEARCH ==========
+
+export async function advancedJobSearch(query, filters = {}) {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/search/`, { headers, params: { q: query, ...filters } })
+  );
+  return data;
+}
+
+export async function getSearchSuggestions(prefix) {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/search/suggestions/`, { headers, params: { prefix } })
+  );
+  return data;
+}
+
+// ========== AI AUTO APPLY ==========
+
+export async function setAutoApplyPreferences(prefs) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(`${API_JOBS_BASE}/auto-apply/preferences/`, prefs, { headers })
+  );
+  return data;
+}
+
+export async function getAutoApplyPreferences() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/auto-apply/preferences/get/`, { headers })
+  );
+  return data;
+}
+
+export async function getAutoApplyHistory() {
+  const { data } = await withSecureAuth((headers) =>
+    api.get(`${API_JOBS_BASE}/auto-apply/history/`, { headers })
+  );
+  return data;
+}
+
 export async function getCompanyProfile(companyId) {
   const { data } = await api.get(`/api/companies/${companyId}/`);
   return data;
@@ -895,6 +1165,54 @@ export async function getResumeMatches(resumeId) {
 export async function getMatchDetails(matchId) {
   const { data } = await withSecureAuth((headers) =>
     api.get(`${API_JOBS_BASE}/resume-match/${matchId}/`, { headers })
+  );
+  return data;
+}
+
+export async function uploadComparatorResume(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const { data } = await withSecureAuth((headers) =>
+    api.post("/api/resume/upload/", formData, {
+      headers: {
+        ...headers,
+        "Content-Type": "multipart/form-data",
+      },
+    })
+  );
+  clearApiCache();
+  return data;
+}
+
+export async function compareResumeToJob(resumeId, jobId, asyncProcess = false) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post(
+      "/api/compare/",
+      { resume_id: resumeId, job_id: jobId, async_process: asyncProcess },
+      { headers }
+    )
+  );
+  return data;
+}
+
+export async function aiMatchResumeToJob(resumeId, jobId) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post("/api/ai/match/", { resume_id: resumeId, job_id: jobId }, { headers })
+  );
+  return data;
+}
+
+export async function getComparatorSkillGap(payload) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post("/api/skill-gap/", payload, { headers })
+  );
+  return data;
+}
+
+export async function predictComparatorSalary(payload) {
+  const { data } = await withSecureAuth((headers) =>
+    api.post("/api/salary-predict/", payload, { headers })
   );
   return data;
 }

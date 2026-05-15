@@ -20,12 +20,19 @@ from django.conf.urls.static import static
 from django.urls import include, path
 
 from .views import api_root
+from jobs import comparison_views
 
 urlpatterns = [
     path('', api_root, name='api-root'),
     path('admin/', admin.site.urls),
     path('api/auth/', include('accounts.urls')),
+    path('api/compare/', comparison_views.compare_api, name='api-compare'),
+    path('api/resume/upload/', comparison_views.upload_resume_api, name='api-resume-upload'),
+    path('api/ai/match/', comparison_views.ai_match_api, name='api-ai-match'),
+    path('api/skill-gap/', comparison_views.skill_gap_api, name='api-skill-gap'),
+    path('api/salary-predict/', comparison_views.salary_predict_api, name='api-salary-predict'),
     path('api/jobs/', include('jobs.urls')),
+    path('api/companies/', include('jobs.company_urls')),
 ]
 
 if settings.DEBUG:

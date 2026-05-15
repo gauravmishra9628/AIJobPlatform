@@ -319,6 +319,9 @@ def analyze_skill_gap(request):
     # Define role-based required skills (simplified)
     role_skills = {
         "junior developer": ["Python", "JavaScript", "HTML", "CSS", "Git"],
+        "frontend developer": ["HTML", "CSS", "JavaScript", "React", "Git"],
+        "backend developer": ["Python", "Django", "REST APIs", "SQL", "Docker"],
+        "full stack developer": ["React", "Python", "Django", "SQL", "Docker"],
         "senior developer": ["Python", "JavaScript", "Docker", "AWS", "SQL"],
         "data scientist": ["Python", "Machine Learning", "SQL", "Statistics", "TensorFlow"],
         "product manager": ["Product Strategy", "Analytics", "Communication", "Leadership"],
