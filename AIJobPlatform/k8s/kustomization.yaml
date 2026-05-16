@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aijobplatform
+
+resources:
+  - namespace.yaml
+  - postgres-statefulset.yaml
+  - redis-statefulset.yaml
+  - backend-deployment.yaml
+  - frontend-deployment.yaml
+  - celery-deployment.yaml
+  - ingress.yaml
+
+commonLabels:
+  app: aijobplatform
+  version: "1.0.0"
+
+configMapGenerator:
+  - name: aijobplatform-config
+    envs:
+      - config.env
+
+vars:
+  - name: DJANGO_SECRET_KEY
+    objref:
+      kind: Secret
+      name: aijobplatform-secrets
+      fieldRef:
+        fieldPath: data.django-secret-key
+
+images:
+  - name: aijobplatform/backend
+    newTag: latest
+  - name: aijobplatform/frontend
+    newTag: latest

@@ -2728,10 +2728,11 @@ def start_voice_session(request):
 @require_http_methods(["POST"])
 @jwt_required
 def process_voice_transcript(request):
-    """Process voice transcript and get AI response"""
+    """Process voice transcript and get AI response with follow-up questions"""
     data = parse_json(request)
     session_id = data.get("session_id")
     transcript = data.get("transcript", "")
+    speech_analysis = data.get("speech_analysis", {})
 
     if not session_id:
         return JsonResponse({"error": "session_id is required"}, status=400)
@@ -2741,23 +2742,112 @@ def process_voice_transcript(request):
     except VoiceSession.DoesNotExist:
         return JsonResponse({"error": "Session not found"}, status=404)
 
-    # Generate AI response based on session type
-    if session.session_type == "interview":
-        response = f"I see you mentioned: '{transcript}'. Let me help you improve your interview answer. Consider structuring your response with the STAR method (Situation, Task, Action, Result)."
-    elif session.session_type == "advice":
-        response = f"Based on your question about '{transcript}', I'd recommend focusing on building relevant skills and gaining practical experience. What specific area would you like to explore deeper?"
+    # Analyze speech metrics from frontend
+    confidence = speech_analysis.get("confidence", 0)
+    filler_count = speech_analysis.get("fillerWordCount", 0)
+    words_per_minute = speech_analysis.get("wordsPerMinute", 0)
+    total_words = speech_analysis.get("totalWords", 0)
+
+    # Determine mood based on speech analysis
+    if confidence >= 80:
+        mood = "confident"
+    elif confidence >= 60:
+        mood = "neutral"
     else:
-        response = f"To improve your skills in '{transcript}', I suggest starting with foundational concepts and working on real-world projects."
+        mood = "uncertain"
+
+    # Generate AI response based on session type with follow-up questions
+    follow_up_questions = []
+
+    if session.session_type == "interview":
+        # Interview practice mode - provide STAR method guidance
+        response_parts = []
+        response_parts.append(f"I hear you mentioning: '{transcript[:100]}...' ")
+
+        if filler_count > 3:
+            response_parts.append("I noticed some filler words. Try to pause naturally between thoughts. ")
+
+        if words_per_minute > 160:
+            response_parts.append("Try slowing down a bit - your speaking speed was quite fast. ")
+        elif words_per_minute > 0 and words_per_minute < 100:
+            response_parts.append("Try to be more confident and speak a bit faster. ")
+
+        response_parts.append("Consider using the STAR method to structure your answer: Situation, Task, Action, Result. ")
+
+        response = "".join(response_parts)
+        follow_up_questions = [
+            "Can you describe a specific challenging situation you faced and how you resolved it?",
+            "Tell me about a time you had to work with a difficult team member.",
+            "What's your greatest professional achievement?",
+        ]
+
+    elif session.session_type == "advice":
+        # Career advice mode
+        response_parts = []
+        response_parts.append(f"Thanks for sharing: '{transcript[:100]}...' ")
+
+        if confidence < 60:
+            response_parts.append("I can sense some uncertainty. Let's work through this together. ")
+
+        response_parts.append("Here are my recommendations: First, identify your key strengths and how they align with your goals. Second, seek opportunities to demonstrate leadership even in small ways. Third, continuously update your technical skills through real-world projects.")
+
+        response = "".join(response_parts)
+        follow_up_questions = [
+            "What's your current role and years of experience?",
+            "Are you more interested in technical advancement or management?",
+            "What's your target timeline for progression?",
+        ]
+
+    else:  # skill guidance
+        response_parts = []
+        response_parts.append(f"Let's work on: '{transcript[:100]}...' ")
+
+        if filler_count > 5:
+            response_parts.append("Focus on being more concise when describing your skills. ")
+
+        response_parts.append("For skill development, I recommend: 1) Start with foundational concepts, 2) Build real-world projects, 3) Get feedback from peers, 4) Document your learning journey.")
+
+        response = "".join(response_parts)
+        follow_up_questions = [
+            "What's your current proficiency level?",
+            "How many hours per week can you dedicate to learning?",
+            "Do you prefer structured courses or project-based learning?",
+        ]
 
     # Update session
     session.transcript = (session.transcript or "") + f"\n{transcript}"
     session.ai_response = (session.ai_response or "") + f"\n{response}"
+
+    # Update key insights with speech analysis
+    session.key_insights = [
+        {"metric": "confidence", "value": confidence},
+        {"metric": "filler_words", "value": filler_count},
+        {"metric": "speaking_speed", "value": words_per_minute},
+        {"metric": "total_words", "value": total_words},
+    ]
+
+    # Detect mood
+    if confidence >= 75 and filler_count < 3:
+        session.mood_detected = "confident"
+    elif confidence >= 50:
+        session.mood_detected = "neutral"
+    else:
+        session.mood_detected = "uncertain"
+
     session.save()
 
     return JsonResponse({
         "transcript": transcript,
         "response": response,
-        "mood_detected": "confident" if len(transcript) > 50 else "neutral",
+        "mood_detected": session.mood_detected,
+        "follow_up_questions": follow_up_questions[:3],
+        "speech_analysis": {
+            "confidence": confidence,
+            "filler_word_count": filler_count,
+            "words_per_minute": words_per_minute,
+            "total_words": total_words,
+            "speaking_speed_status": "fast" if words_per_minute > 160 else "slow" if words_per_minute < 100 else "optimal",
+        },
     })
 
 
@@ -2803,6 +2893,220 @@ def voice_sessions(request):
             }
             for s in sessions
         ]
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@jwt_required
+def whisper_transcribe(request):
+    """Whisper-based audio transcription endpoint"""
+    try:
+        audio_file = request.FILES.get("audio")
+        if not audio_file:
+            return JsonResponse({"error": "No audio file provided"}, status=400)
+
+        # For now, return a placeholder - in production, use OpenAI Whisper API
+        # You would use: openai.Audio.transcribe("whisper-1", audio_file)
+        # Or use a self-hosted Whisper model
+
+        # Check if OPENAI_API_KEY is available for Whisper
+        api_key = getattr(settings, "OPENAI_API_KEY", "") or os.environ.get("OPENAI_API_KEY")
+
+        if api_key and len(api_key) > 10:
+            # Use OpenAI Whisper API
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as tmp:
+                for chunk in audio_file.chunks():
+                    tmp.write(chunk)
+                tmp_path = tmp.name
+
+            with open(tmp_path, "rb") as audio:
+                # Note: OpenAI Python SDK v1.0+ uses new syntax
+                try:
+                    from openai import OpenAI
+                    client = OpenAI(api_key=api_key)
+                    with open(tmp_path, "rb") as f:
+                        transcript = client.audio.transcriptions.create(
+                            model="whisper-1",
+                            file=f
+                        )
+                    transcription_text = transcript.text
+                except ImportError:
+                    # Fallback for older SDK
+                    response = openai.Audio.transcribe("whisper-1", audio)
+                    transcription_text = response["text"]
+
+            os.unlink(tmp_path)
+
+            return JsonResponse({
+                "transcript": transcription_text,
+                "confidence": 0.95,
+                "language": "en",
+                "source": "whisper"
+            })
+        else:
+            # Fallback: require transcript from frontend (Web Speech API)
+            return JsonResponse({
+                "transcript": "",
+                "error": "Whisper API not configured. Use Web Speech API for transcription.",
+                "source": "fallback"
+            })
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@jwt_required
+def generate_followup_questions(request):
+    """Generate AI-powered follow-up questions based on conversation context"""
+    data = parse_json(request)
+    transcript = data.get("transcript", "")
+    session_type = data.get("session_type", "advice")
+    context = data.get("context", "")
+
+    if not transcript:
+        return JsonResponse({"error": "transcript is required"}, status=400)
+
+    # Use AI service to generate personalized follow-up questions
+    try:
+        api_key = getattr(settings, "OPENAI_API_KEY", "") or os.environ.get("OPENAI_API_KEY")
+        gemini_key = getattr(settings, "GOOGLE_GEMINI_KEY", "") or os.environ.get("GOOGLE_GEMINI_KEY")
+
+        prompt = f"""Based on the following conversation in a {session_type} session:
+
+User said: "{transcript}"
+Context: {context}
+
+Generate 3-5 personalized follow-up questions that:
+1. Help dig deeper into the user's situation
+2. Are specific and actionable
+3. Help tailor career advice to their needs
+
+Return as JSON array of strings."""
+
+        questions = []
+
+        if api_key and len(api_key) > 10:
+            # Use OpenAI
+            try:
+                from openai import OpenAI
+                client = OpenAI(api_key=api_key)
+                response = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "You are a helpful career coach AI."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.7,
+                    max_tokens=300
+                )
+                content = response.choices[0].message.content
+                questions = json.loads(content)
+            except Exception as e:
+                print(f"OpenAI API error: {e}")
+                questions = _get_default_questions(session_type)
+        elif gemini_key and len(gemini_key) > 10:
+            # Use Gemini
+            import requests
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={gemini_key}"
+            gemini_payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"temperature": 0.7, "maxOutputTokens": 300}
+            }
+            resp = requests.post(gemini_url, json=gemini_payload)
+            if resp.status_code == 200:
+                text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+                questions = json.loads(text)
+            else:
+                questions = _get_default_questions(session_type)
+        else:
+            questions = _get_default_questions(session_type)
+
+        return JsonResponse({
+            "follow_up_questions": questions,
+            "source": "ai"
+        })
+
+    except Exception as e:
+        return JsonResponse({
+            "follow_up_questions": _get_default_questions(session_type),
+            "source": "fallback",
+            "error": str(e)
+        })
+
+
+def _get_default_questions(session_type):
+    """Default follow-up questions based on session type"""
+    if session_type == "interview":
+        return [
+            "Can you describe a specific situation where you had to solve a difficult problem?",
+            "Tell me about a time you failed and what you learned from it.",
+            "What are your greatest strengths and how do you demonstrate them?",
+            "Why are you interested in this role and company?",
+        ]
+    elif session_type == "advice":
+        return [
+            "What's your current career level and experience?",
+            "What specific skills are you looking to develop?",
+            "What's your timeline for career progression?",
+            "What type of work environment do you thrive in?",
+        ]
+    else:
+        return [
+            "What's your current skill level?",
+            "How much time can you dedicate to learning?",
+            "Do you prefer theoretical or practical learning?",
+            "What's your learning goal timeline?",
+        ]
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@jwt_required
+def analyze_speech_quality(request):
+    """Analyze speech quality metrics from text"""
+    data = parse_json(request)
+    transcript = data.get("transcript", "")
+
+    if not transcript:
+        return JsonResponse({"error": "transcript is required"}, status=400)
+
+    # Analyze speech patterns
+    words = transcript.lower().split()
+    word_count = len(words)
+
+    # Filler words detection
+    filler_words = ["um", "uh", "like", "you know", "basically", "actually", "literally", "so", "well", "I mean"]
+    filler_count = sum(1 for w in words if w in filler_words)
+
+    # Confidence estimation (based on sentence structure)
+    has_questions = "?" in transcript
+    has_ellipsis = "..." in transcript
+    sentence_count = transcript.count(".") + transcript.count("!") + transcript.count("?")
+
+    confidence = 85
+    if filler_count > word_count * 0.1:
+        confidence -= 15
+    if has_ellipsis:
+        confidence -= 10
+    if sentence_count == 0 and word_count > 10:
+        confidence -= 10
+    confidence = max(50, min(100, confidence))
+
+    # Speaking pace indication
+    avg_word_length = sum(len(w) for w in words) / max(1, word_count)
+
+    return JsonResponse({
+        "confidence_score": confidence,
+        "filler_word_count": filler_count,
+        "filler_word_percentage": round((filler_count / max(1, word_count)) * 100, 2),
+        "total_words": word_count,
+        "has_uncertainty_markers": has_ellipsis or has_questions,
+        "avg_word_length": round(avg_word_length, 2),
+        "assessment": "Good" if confidence >= 80 else "Needs improvement" if confidence >= 60 else "Needs work"
     })
 
 

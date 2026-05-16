@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aijobplatform-config
+  namespace: aijobplatform
+data:
+  redis-url: "redis://aijobplatform-redis:6379/0"
+  celery-broker-url: "redis://aijobplatform-redis:6379/0"
+  celery-result-backend: "redis://aijobplatform-redis:6379/0"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aijobplatform-secrets
+  namespace: aijobplatform
+type: Opaque
+stringData:
+  django-secret-key: "CHANGE_ME_IN_PRODUCTION"
+  database-url: "postgres://user:password@host:5432/db"
+  openai-api-key: ""
+  sentry-dsn: ""
+  stripe-secret-key: ""
+  razorpay-key-secret: ""
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: aijobplatform-postgres
+  namespace: aijobplatform
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_DB
+              value: aijobplatform
+            - name: POSTGRES_USER
+              value: aijobuser
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aijobplatform-secrets
+                  key: postgres-password
+          ports:
+            - containerPort: 5432
+              name: postgres
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          volumeClaimTemplates:
+            - metadata:
+                name: postgres-data
+              spec:
+                accessModes: ["ReadWriteOnce"]
+                storageClassName: standard
+                resources:
+                  requests:
+                    storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aijobplatform-postgres
+  namespace: aijobplatform
+spec:
+  selector:
+    app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432

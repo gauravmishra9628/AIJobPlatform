@@ -489,12 +489,11 @@ class QueryResult(models.Model):
     relevance_score = models.FloatField(default=0.0)
     reasoning = models.TextField(blank=True)
 
-    def __str__(self):
-        return f"Result: {self.candidate} (score={self.relevance_score:.2f})"
-        unique_together = ["user", "skill_name", "badge_tier"]
+    class Meta:
+        unique_together = ["query", "candidate"]
 
     def __str__(self):
-        return f"{self.user.email} - {self.skill_name} ({self.badge_tier})"
+        return f"Result: {self.candidate} (score={self.relevance_score:.2f})"
 
 
 class AutoApplyRun(models.Model):
@@ -744,6 +743,12 @@ class UsageLedger(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "usage_type", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} {self.usage_type} x{self.amount}"
 
 
 # ========== AI RESUME MATCH SCORE FEATURE ==========
@@ -799,12 +804,6 @@ class ResumeJobMatch(models.Model):
 
     def __str__(self):
         return f"Match: {self.resume.original_name} vs {self.job.title} ({self.match_percentage:.1f}%)"
-        indexes = [
-            models.Index(fields=["user", "usage_type", "created_at"]),
-        ]
-
-    def __str__(self):
-        return f"{self.user.email} {self.usage_type} x{self.amount}"
 
 
 # ========== SMART CAREER GRAPH MODELS ==========

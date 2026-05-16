@@ -167,6 +167,9 @@ urlpatterns = [
     path("voice/transcript/process/", ai_views.process_voice_transcript, name="process-voice-transcript"),
     path("voice/session/end/", ai_views.end_voice_session, name="end-voice-session"),
     path("voice/sessions/", ai_views.voice_sessions, name="voice-sessions"),
+    path("voice/whisper/transcribe/", ai_views.whisper_transcribe, name="whisper-transcribe"),
+    path("voice/followup/questions/", ai_views.generate_followup_questions, name="generate-followup-questions"),
+    path("voice/speech/analyze/", ai_views.analyze_speech_quality, name="analyze-speech-quality"),
 
     # ========== REALTIME COLLABORATION ==========
     path("collaboration/review/create/", ai_views.create_collaborative_review, name="create-collaborative-review"),
