@@ -57,6 +57,26 @@ function setStoredTokens(tokens) {
   localStorage.setItem("aijob_tokens", JSON.stringify(tokens));
 }
 
+function getStoredUser() {
+  const raw = localStorage.getItem("aijob_user");
+  if (!raw) {
+    return null;
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function setStoredUser(user) {
+  if (!user) {
+    localStorage.removeItem("aijob_user");
+    return;
+  }
+  localStorage.setItem("aijob_user", JSON.stringify(user));
+}
+
 function withAuthHeaders() {
   const access = getStoredTokens()?.access;
   return access ? { Authorization: `Bearer ${access}` } : {};
@@ -129,6 +149,9 @@ export async function login(data) {
     const { data: payload } = await api.post(`${API_AUTH_BASE}/login/`, data);
     if (payload?.tokens) {
       setStoredTokens(payload.tokens);
+    }
+    if (payload?.user) {
+      setStoredUser(payload.user);
     }
     return payload;
   } catch (error) {
@@ -207,6 +230,7 @@ export async function logout() {
     // Ignore logout API failures and always clear local tokens.
   } finally {
     setStoredTokens(null);
+    setStoredUser(null);
   }
 }
 
@@ -1233,6 +1257,10 @@ export async function saveFavoriteJob(jobId, action = "add") {
 
 export function hasSession() {
   return Boolean(getStoredTokens()?.access);
+}
+
+export function getAuthenticatedUser() {
+  return getStoredUser();
 }
 
 // ========== NEW FEATURE API HELPERS ==========

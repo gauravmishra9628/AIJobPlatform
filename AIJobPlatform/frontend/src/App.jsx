@@ -37,6 +37,7 @@ import {
   getRecommendations,
   getTeamRecommendations,
   hasSession,
+  getAuthenticatedUser,
   latestResume,
   listApplications,
   listJobs,
@@ -2168,6 +2169,11 @@ export default function App() {
 
   useEffect(() => {
     if (!profile?.user) {
+      const storedUser = getAuthenticatedUser();
+      if (!storedUser) {
+        return;
+      }
+      setProfile({ user: storedUser, profile: {} });
       return;
     }
     setResumeBuilder((current) => ({
@@ -2411,9 +2417,22 @@ export default function App() {
               event.preventDefault();
               runAction(
                 async () => {
-                  await login(loginData);
-                  await loadDashboardData();
-                  navigate("/dashboard", { replace: true });
+                    const auth = await login(loginData);
+                    const nextProfile = { user: auth?.user || null, profile: auth?.profile || {} };
+                    if (auth?.user) {
+                      setProfile(nextProfile);
+                      syncProfileForm(nextProfile);
+                    }
+                    const role = auth?.user?.role;
+                    const landingRoute = role === "recruiter" || role === "admin"
+                      ? "/recruiter/dashboard"
+                      : role === "student"
+                        ? "/dashboard/student"
+                        : "/dashboard";
+                    navigate(landingRoute, { replace: true });
+                    void loadDashboardData().catch((error) => {
+                      setMessage(error?.message || "Logged in, loading dashboard data...");
+                    });
                 },
                 "Login successful."
               );

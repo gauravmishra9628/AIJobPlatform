@@ -7,6 +7,11 @@ from urllib.parse import urlparse
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _split_env_list(value, default=""):
+    source = value if value is not None else default
+    return [item.strip() for item in str(source).split(",") if item.strip()]
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
@@ -17,11 +22,12 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-    if host.strip()
-]
+ALLOWED_HOSTS = _split_env_list(
+    os.environ.get(
+        "DJANGO_ALLOWED_HOSTS",
+        "localhost,127.0.0.1,.onrender.com,.vercel.app",
+    )
+)
 
 
 # Application definition
@@ -59,13 +65,12 @@ MIDDLEWARE = [
 ]
 
 # CORS Settings
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:3000",
-    "https://*.onrender.com",
-]
+CORS_ALLOWED_ORIGINS = _split_env_list(
+    os.environ.get(
+        "DJANGO_CORS_ALLOWED_ORIGINS",
+        "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,https://*.onrender.com,https://*.vercel.app",
+    )
+)
 CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'core.urls'
@@ -257,14 +262,12 @@ REDOC_SETTINGS = {
 }
 ALLOWED_RESUME_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt"}
 
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in os.environ.get(
+CSRF_TRUSTED_ORIGINS = _split_env_list(
+    os.environ.get(
         "DJANGO_CSRF_TRUSTED_ORIGINS",
-        "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,https://*.onrender.com",
-    ).split(",")
-    if origin.strip()
-]
+        "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,https://*.onrender.com,https://*.vercel.app",
+    )
+)
 
 CORS_ALLOWED_ORIGINS = CSRF_TRUSTED_ORIGINS
 
