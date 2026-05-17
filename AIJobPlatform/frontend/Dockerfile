@@ -6,6 +6,8 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
+ENV VITE_API_AUTH_BASE=https://aijobplatform-api.onrender.com/api/auth
+ENV VITE_API_JOBS_BASE=https://aijobplatform-api.onrender.com/api/jobs
 RUN npm run build
 
 FROM nginx:1.27-alpine
