@@ -1989,9 +1989,9 @@ function CompanyDirectoryPage() {
           </div>
           <label className="field" style={{ minWidth: 280 }}>
             <span>Search company</span>
-            <input value={companySearch} onChange={(event) => setCompanySearch(event.target.value)} placeholder="Acme Labs" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Acme Labs" />
           </label>
-          <button className="ghostButton fitButton" type="button" onClick={() => loadCompanies(companySearch)}>
+          <button className="ghostButton fitButton" type="button" onClick={() => loadCompanies(query)}>
             Search
           </button>
         </div>
@@ -2417,22 +2417,22 @@ export default function App() {
               event.preventDefault();
               runAction(
                 async () => {
-                    const auth = await login(loginData);
-                    const nextProfile = { user: auth?.user || null, profile: auth?.profile || {} };
-                    if (auth?.user) {
-                      setProfile(nextProfile);
-                      syncProfileForm(nextProfile);
-                    }
-                    const role = auth?.user?.role;
-                    const landingRoute = role === "recruiter" || role === "admin"
-                      ? "/recruiter/dashboard"
-                      : role === "student"
-                        ? "/dashboard/student"
-                        : "/dashboard";
-                    navigate(landingRoute, { replace: true });
-                    void loadDashboardData().catch((error) => {
-                      setMessage(error?.message || "Logged in, loading dashboard data...");
-                    });
+                  const auth = await login(loginData);
+                  const nextProfile = { user: auth?.user || null, profile: auth?.profile || {} };
+                  if (auth?.user) {
+                    setProfile(nextProfile);
+                    syncProfileForm(nextProfile);
+                  }
+                  const role = auth?.user?.role;
+                  const landingRoute = role === "recruiter" || role === "admin"
+                    ? "/recruiter/dashboard"
+                    : role === "student"
+                      ? "/dashboard/student"
+                      : "/dashboard";
+                  navigate(landingRoute, { replace: true });
+                  void loadDashboardData().catch((error) => {
+                    setMessage(error?.message || "Logged in, loading dashboard data...");
+                  });
                 },
                 "Login successful."
               );
@@ -2440,7 +2440,7 @@ export default function App() {
           >
             {field("Email", loginData.email, (event) => setLoginData({ ...loginData, email: event.target.value }), "email", true)}
             {field("Password", loginData.password, (event) => setLoginData({ ...loginData, password: event.target.value }), "password", true)}
-            <button disabled={loading} type="submit">{loading ? "Opening..." : "Open workspace"}</button>
+            <button disabled={loading} type="submit">{loading ? "Signing in..." : "Sign in"}</button>
           </form>
           <Link className="subtleLink" to="/forgot-password">Forgot your password?</Link>
         </article>
