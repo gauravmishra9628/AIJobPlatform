@@ -16,18 +16,7 @@ commonLabels:
   app: aijobplatform
   version: "1.0.0"
 
-configMapGenerator:
-  - name: aijobplatform-config
-    envs:
-      - config.env
 
-vars:
-  - name: DJANGO_SECRET_KEY
-    objref:
-      kind: Secret
-      name: aijobplatform-secrets
-      fieldRef:
-        fieldPath: data.django-secret-key
 
 images:
   - name: aijobplatform/backend

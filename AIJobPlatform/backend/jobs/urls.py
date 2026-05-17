@@ -1,25 +1,26 @@
 from django.urls import path
 
-from . import views, advanced_views, ai_views, subscription_views
+from . import advanced_views, ai_views, subscription_views
 from . import feature_views, resume_match_views
+from .views import social_views, analytics_views, cover_letter_views, company_review_views
 
 app_name = "jobs"
 
 urlpatterns = [
-    path("", views.jobs_collection, name="jobs-collection"),
-    path("my/", views.my_jobs, name="my-jobs"),
-    path("<int:job_id>/", views.job_detail, name="job-detail"),
-    path("<int:job_id>/apply/", views.apply_to_job, name="job-apply"),
-    path("applications/", views.applications_collection, name="applications"),
-    path("applications/<int:application_id>/", views.application_detail, name="application-detail"),
-    path("applications/auto-apply/", views.auto_apply_jobs, name="auto-apply-jobs"),
-    path("resume/upload/", views.upload_resume, name="resume-upload"),
-    path("resume/latest/", views.latest_resume, name="resume-latest"),
-    path("resume/<int:resume_id>/download-pdf/", views.download_resume_pdf, name="resume-download-pdf"),
-    path("resume/download-pdf-template/", views.download_resume_pdf_from_template, name="resume-download-pdf-template"),
-    path("recommendations/", views.recommendations, name="recommendations"),
-    path("career-guidance/", views.career_guidance, name="career-guidance"),
-    path("messages/", views.messages_collection, name="messages"),
+    path("", ai_views.jobs_collection, name="jobs-collection"),
+    path("my/", ai_views.my_jobs, name="my-jobs"),
+    path("<int:job_id>/", ai_views.job_detail, name="job-detail"),
+    path("<int:job_id>/apply/", ai_views.apply_to_job, name="job-apply"),
+    path("applications/", ai_views.applications_collection, name="applications"),
+    path("applications/<int:application_id>/", ai_views.application_detail, name="application-detail"),
+    path("applications/auto-apply/", ai_views.auto_apply_jobs, name="auto-apply-jobs"),
+    path("resume/upload/", ai_views.upload_resume, name="resume-upload"),
+    path("resume/latest/", ai_views.latest_resume, name="resume-latest"),
+    path("resume/<int:resume_id>/download-pdf/", ai_views.download_resume_pdf, name="resume-download-pdf"),
+    path("resume/download-pdf-template/", ai_views.download_resume_pdf_from_template, name="resume-download-pdf-template"),
+    path("recommendations/", ai_views.recommendations, name="recommendations"),
+    path("career-guidance/", ai_views.career_guidance, name="career-guidance"),
+    path("messages/", ai_views.messages_collection, name="messages"),
     
     # ATS Scoring
     path("resume/analyze-ats/", advanced_views.analyze_resume_ats, name="analyze-ats"),
@@ -209,5 +210,28 @@ urlpatterns = [
 
     # ========== RECRUITER CANDIDATE SEARCH ==========
     path("recruiter/candidates/", ai_views.recruiter_candidates, name="recruiter-candidates"),
-]
 
+    # ========== SOCIAL IMPORT (GitHub + LinkedIn) ==========
+    path("import/github/", social_views.import_github, name="import-github"),
+    path("import/linkedin/form/", social_views.linkedin_import_form, name="linkedin-import-form"),
+    path("import/linkedin/", social_views.import_linkedin, name="import-linkedin"),
+    path("import/connected/", social_views.connected_accounts, name="connected-accounts"),
+
+    # ========== ANALYTICS DASHBOARD ==========
+    path("analytics/dashboard/", analytics_views.get_user_dashboard, name="analytics-dashboard"),
+    path("analytics/applications/", analytics_views.get_application_trends, name="application-trends"),
+    path("analytics/skills/", analytics_views.get_skill_progress, name="skill-progress"),
+    path("analytics/interviews/", analytics_views.get_interview_performance, name="interview-performance"),
+    path("analytics/resumes/", analytics_views.get_resume_strength, name="resume-strength"),
+
+    # ========== COVER LETTER GENERATOR ==========
+    path("cover-letter/generate/", cover_letter_views.generate_cover_letter_view, name="generate-cover-letter-api"),
+    path("cover-letter/generate-multiple/", cover_letter_views.generate_multiple_cover_letters, name="generate-multiple-cover-letters"),
+
+    # ========== COMPANY REVIEWS ==========
+    path("reviews/company/", company_review_views.company_reviews_list, name="company-reviews"),
+    path("reviews/company/summary/", company_review_views.company_rating_summary, name="company-rating-summary"),
+    path("reviews/create/", company_review_views.create_review, name="create-review"),
+    path("reviews/<int:review_id>/helpful/", company_review_views.mark_helpful, name="mark-helpful"),
+    path("reviews/top-companies/", company_review_views.top_companies, name="top-companies"),
+]

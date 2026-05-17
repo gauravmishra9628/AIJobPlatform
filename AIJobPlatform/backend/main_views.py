@@ -13,8 +13,8 @@ from django.views.decorators.http import require_http_methods
 from accounts.decorators import jwt_required, role_required
 from accounts.models import User
 
-from .models import AutoApplyRun, JobApplication, JobPost, NetworkMessage, Resume
-from .models import AIResumeAnalysis
+from jobs.models import AutoApplyRun, JobApplication, JobPost, NetworkMessage, Resume
+from jobs.models import AIResumeAnalysis
 from core.pdf_generator import PDFResumeGenerator
 from core.ai_integrations import AIIntegrationService
 
@@ -396,7 +396,7 @@ def auto_apply_jobs(request):
     if not resume:
         return JsonResponse({"detail": "Upload a resume before auto applying."}, status=400)
 
-    from .ai_views import calculate_ai_match
+    from .jobs.ai_views import calculate_ai_match
 
     applied_jobs = []
     skipped_jobs = []

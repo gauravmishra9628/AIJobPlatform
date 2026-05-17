@@ -48,5 +48,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/api/ || exit 1
 
-# Run with Gunicorn
-CMD ["gunicorn", "--bind", ":8000", "--workers", "4", "--threads", "2", "--timeout", "120", "core.asgi:application"]
+# Run ASGI app with Daphne
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "core.asgi:application"]

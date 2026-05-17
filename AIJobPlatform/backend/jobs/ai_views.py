@@ -26,6 +26,12 @@ from .models import (
     UserGameProfile, XPTransaction, Badge, UserBadge, DailyChallenge,
     UserChallenge, AutoApplyPreferences, AutoApplication
 )
+from main_views import (
+    application_detail, applications_collection, apply_to_job, auto_apply_jobs,
+    career_guidance, download_resume_pdf, download_resume_pdf_from_template,
+    job_detail, jobs_collection, latest_resume, messages_collection, my_jobs,
+    recommendations, upload_resume,
+)
 
 
 def split_skill_keywords(text):

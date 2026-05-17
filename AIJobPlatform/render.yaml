@@ -1,14 +1,15 @@
-# Render Blueprint for AI Job Platform Backend
-# Deploy: https://render.com/docs/blueprint-def
+# Render Blueprint for AI Job Platform
+# Use this file when deploying the whole monorepo from the AIJobPlatform root.
 
 services:
-  # Web Backend
   - type: web
     name: aijobplatform-api
     runtime: python
+    rootDir: backend
     region: oregon
     plan: standard
-    buildCommand: "pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput"
+    buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
+    preDeployCommand: "python manage.py migrate --noinput"
     startCommand: "daphne -b 0.0.0.0 -p $PORT core.asgi:application"
     envVars:
       - key: DJANGO_ENV
@@ -21,10 +22,6 @@ services:
         sync: false
       - key: DJANGO_SECRET_KEY
         generateValue: true
-      - key: USE_REDIS
-        value: "True"
-      - key: API_RATE_LIMIT_PER_MINUTE
-        value: "60"
       - key: DJANGO_SESSION_COOKIE_SECURE
         value: "True"
       - key: DJANGO_CSRF_COOKIE_SECURE
@@ -35,6 +32,10 @@ services:
         value: "31536000"
       - key: DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS
         value: "True"
+      - key: USE_REDIS
+        value: "True"
+      - key: API_RATE_LIMIT_PER_MINUTE
+        value: "60"
       - key: DATABASE_URL
         fromDatabase:
           name: aijobplatform-db
@@ -45,10 +46,10 @@ services:
           name: aijobplatform-redis
           property: connectionString
 
-  # Celery Worker (Background Jobs)
   - type: worker
     name: aijobplatform-celery
     runtime: python
+    rootDir: backend
     region: oregon
     plan: standard
     buildCommand: "pip install -r requirements.txt"
@@ -56,6 +57,12 @@ services:
     envVars:
       - key: DJANGO_ENV
         value: production
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false
       - key: DATABASE_URL
         fromDatabase:
           name: aijobplatform-db
@@ -76,7 +83,22 @@ services:
           name: aijobplatform-redis
           property: connectionString
 
-  # Render Key Value (Redis-compatible cache/broker)
+  - type: web
+    name: aijobplatform-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: "npm install && npm run build"
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_AUTH_BASE
+        value: https://aijobplatform-api.onrender.com/api/auth
+      - key: VITE_API_JOBS_BASE
+        value: https://aijobplatform-api.onrender.com/api/jobs
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
   - type: keyvalue
     name: aijobplatform-redis
     region: oregon
@@ -87,16 +109,5 @@ services:
 databases:
   - name: aijobplatform-db
     plan: standard
-    size: 1GB
     region: oregon
 
-# Environment variables to set in Render dashboard:
-# OPENAI_API_KEY
-# GOOGLE_GEMINI_KEY
-# STRIPE_SECRET_KEY
-# STRIPE_PUBLISHABLE_KEY
-# RAZORPAY_KEY_ID
-# RAZORPAY_KEY_SECRET
-# SENTRY_DSN
-# EMAIL_HOST_USER
-# EMAIL_HOST_PASSWORD
