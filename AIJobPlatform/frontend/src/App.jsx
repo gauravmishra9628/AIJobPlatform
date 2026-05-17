@@ -3635,15 +3635,15 @@ export default function App() {
       <TopNav profile={profile} loading={loading} onLogout={handleLogout} />
       <Routes>
         <Route path="/" element={hasSession() ? <Navigate to="/dashboard" replace /> : <LandingPage jobs={jobs} />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/opportunities" element={<OpportunitiesPage />} />
+        <Route path="/signup" element={SignupPage()} />
+        <Route path="/login" element={LoginPage()} />
+        <Route path="/opportunities" element={OpportunitiesPage()} />
         <Route path="/companies" element={<CompanyDirectoryPage />} />
         <Route path="/advanced-ai" element={<AdvancedAISuitePage />} />
         <Route path="/saas" element={<ModernSaaSPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
-        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="/forgot-password" element={ForgotPasswordPage()} />
+        <Route path="/verify-email/:token" element={VerifyEmailPage()} />
+        <Route path="/reset-password/:token" element={ResetPasswordPage()} />
         <Route
           path="/dashboard"
           element={

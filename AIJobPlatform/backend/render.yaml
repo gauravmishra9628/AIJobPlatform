@@ -9,7 +9,7 @@ services:
     region: oregon
     plan: standard
     buildCommand: "pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput"
-    startCommand: "uvicorn core.asgi:application --host 0.0.0.0 --port $PORT"
+    startCommand: "gunicorn core.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT"
     healthCheckPath: /health/
     envVars:
       - key: DJANGO_ENV

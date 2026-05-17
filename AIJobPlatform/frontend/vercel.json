@@ -6,8 +6,7 @@
   "devCommand": "npm run dev -- --host",
   "installCommand": "npm install",
   "env": {
-    "VITE_API_AUTH_BASE": "@aijob-api-auth-base",
-    "VITE_API_JOBS_BASE": "@aijob-api-jobs-base"
+    "VITE_API_URL": "https://aijobplatform-api.onrender.com"
   },
   "regions": ["iad1"],
   "headers": [
@@ -32,7 +31,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://your-backend.onrender.com/api/$1"
+      "destination": "https://aijobplatform-api.onrender.com/api/$1"
     },
     {
       "source": "/(.*)",

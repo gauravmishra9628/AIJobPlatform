@@ -11,10 +11,8 @@ RUN npm install
 COPY . .
 
 # Build argument for API URL
-ARG VITE_API_URL=http://localhost:8000
+ARG VITE_API_URL=https://aijobplatform-api.onrender.com
 ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_API_AUTH_BASE=https://aijobplatform-api.onrender.com/api/auth
-ENV VITE_API_JOBS_BASE=https://aijobplatform-api.onrender.com/api/jobs
 
 # Build the application
 RUN npm run build

@@ -28,7 +28,7 @@ services:
       context: ./backend
     environment:
       DJANGO_DEBUG: "False"
-      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,backend,frontend"
       DJANGO_SECRET_KEY: "change-me-in-production"
       DATABASE_URL: "postgres://aijob:aijob_dev_password@postgres:5432/aijobplatform"
       POSTGRES_SSLMODE: "disable"
@@ -72,6 +72,8 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        VITE_API_URL: "http://backend:8000"
     depends_on:
       - backend
     ports:

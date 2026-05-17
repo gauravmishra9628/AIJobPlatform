@@ -1,4 +1,5 @@
 import hashlib
+import fnmatch
 import re
 from html import escape
 from django.conf import settings
@@ -30,7 +31,15 @@ class SimpleCorsMiddleware:
         return response
 
     def _origin_allowed(self, origin):
-        return bool(origin and origin in self.allowed_origins)
+        if not origin:
+            return False
+
+        for allowed_origin in self.allowed_origins:
+            if allowed_origin == origin:
+                return True
+            if "*" in allowed_origin and fnmatch.fnmatch(origin, allowed_origin):
+                return True
+        return False
 
 
 class ApiRateLimitMiddleware:
