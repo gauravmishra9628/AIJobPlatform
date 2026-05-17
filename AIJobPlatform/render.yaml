@@ -10,7 +10,8 @@ services:
     plan: standard
     buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
     preDeployCommand: "python manage.py migrate --noinput"
-    startCommand: "daphne -b 0.0.0.0 -p $PORT core.asgi:application"
+    startCommand: "uvicorn core.asgi:application --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health/
     envVars:
       - key: DJANGO_ENV
         value: production
@@ -110,4 +111,3 @@ databases:
   - name: aijobplatform-db
     plan: standard
     region: oregon
-

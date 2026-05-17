@@ -18,4 +18,4 @@ RUN python manage.py collectstatic --noinput --clear
 
 EXPOSE 8000
 
-CMD daphne -b 0.0.0.0 -p ${PORT:-8000} core.asgi:application
+CMD uvicorn core.asgi:application --host 0.0.0.0 --port ${PORT:-8000}

@@ -9,7 +9,8 @@ services:
     region: oregon
     plan: standard
     buildCommand: "pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput"
-    startCommand: "daphne -b 0.0.0.0 -p $PORT core.asgi:application"
+    startCommand: "uvicorn core.asgi:application --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health/
     envVars:
       - key: DJANGO_ENV
         value: production
