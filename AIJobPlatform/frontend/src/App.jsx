@@ -1680,7 +1680,6 @@ function ModernSaaSPage() {
   const navigate = useNavigate();
   const [billing, setBilling] = useState(saasFallback);
   const [query, setQuery] = useState("");
-  const [companySearch, setCompanySearch] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [provider, setProvider] = useState("stripe");
   const [status, setStatus] = useState("Open the command palette with Ctrl+K.");
