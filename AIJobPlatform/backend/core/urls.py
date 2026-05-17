@@ -19,23 +19,25 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import include, path
 
-from drf_yasg import openapi
-from drf_yasg.views import get_schema_view
-
 from .views import api_root
 from .health import health_check, readiness_check
 from jobs import comparison_views
 
-# Swagger schema configuration
-swagger_info = openapi.Info(
-    title="AI Job Platform API",
-    default_version='v1',
-    description="AI-powered career platform API for students, recruiters, and professionals",
-    contact=openapi.Contact(email="support@aijobplatform.com"),
-    license=openapi.License(name="Proprietary"),
-)
+try:
+    from drf_yasg import openapi
+    from drf_yasg.views import get_schema_view
 
-schema_view = get_schema_view(swagger_info, public=True)
+    swagger_info = openapi.Info(
+        title="AI Job Platform API",
+        default_version='v1',
+        description="AI-powered career platform API for students, recruiters, and professionals",
+        contact=openapi.Contact(email="support@aijobplatform.com"),
+        license=openapi.License(name="Proprietary"),
+    )
+    schema_view = get_schema_view(swagger_info, public=True)
+except ImportError:
+    swagger_info = None
+    schema_view = None
 
 urlpatterns = [
     path('', api_root, name='api-root'),
@@ -51,10 +53,14 @@ urlpatterns = [
     path('api/salary-predict/', comparison_views.salary_predict_api, name='api-salary-predict'),
     path('api/jobs/', include('jobs.urls')),
     path('api/companies/', include('jobs.company_urls')),
-    # Swagger documentation
-    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ]
+
+if schema_view is not None:
+    urlpatterns += [
+        # Swagger documentation
+        path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+        path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    ]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
