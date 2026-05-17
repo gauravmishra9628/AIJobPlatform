@@ -1,8 +1,14 @@
 import axios from "axios";
 
 const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
-const API_AUTH_BASE = API_URL ? `${API_URL}/api/auth` : (import.meta.env.VITE_API_AUTH_BASE || "/api/auth");
-const API_JOBS_BASE = API_URL ? `${API_URL}/api/jobs` : (import.meta.env.VITE_API_JOBS_BASE || "/api/jobs");
+const API_AUTH_BASE = (
+  import.meta.env.VITE_API_AUTH_BASE ||
+  (API_URL ? `${API_URL}/api/auth` : "/api/auth")
+).replace(/\/$/, "");
+const API_JOBS_BASE = (
+  import.meta.env.VITE_API_JOBS_BASE ||
+  (API_URL ? `${API_URL}/api/jobs` : "/api/jobs")
+).replace(/\/$/, "");
 
 const api = axios.create({
   baseURL: API_URL || undefined,
