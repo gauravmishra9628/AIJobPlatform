@@ -2226,20 +2226,34 @@ export default function App() {
   }
 
   async function loadDashboardData() {
-    const [profilePayload, jobsPayload, resumePayload, applicationPayload, messagePayload] = await Promise.all([
-      getProfile(),
+    const storedUser = getAuthenticatedUser();
+    let profilePayload = null;
+
+    try {
+      profilePayload = await getProfile();
+    } catch (error) {
+      console.error("[AIJobPlatform] Failed to load profile", error);
+      if (storedUser) {
+        profilePayload = { user: storedUser, profile: {} };
+      } else {
+        throw error;
+      }
+    }
+
+    setProfile(profilePayload);
+    syncProfileForm(profilePayload);
+
+    const [jobsPayload, resumePayload, applicationPayload, messagePayload] = await Promise.allSettled([
       listJobs(),
       latestResume(),
       listApplications(),
       listMessages(),
     ]);
 
-    setProfile(profilePayload);
-    syncProfileForm(profilePayload);
-    setJobs(jobsPayload.jobs || []);
-    setResume(resumePayload.resume || null);
-    setApplications(applicationPayload.applications || []);
-    setMessages(messagePayload.messages || []);
+    setJobs(jobsPayload.status === "fulfilled" ? jobsPayload.value.jobs || [] : []);
+    setResume(resumePayload.status === "fulfilled" ? resumePayload.value.resume || null : null);
+    setApplications(applicationPayload.status === "fulfilled" ? applicationPayload.value.applications || [] : []);
+    setMessages(messagePayload.status === "fulfilled" ? messagePayload.value.messages || [] : []);
 
     const role = profilePayload?.user?.role;
     if (role === "recruiter" || role === "admin") {
@@ -3663,15 +3677,15 @@ export default function App() {
       <TopNav profile={profile} loading={loading} onLogout={handleLogout} />
       <Routes>
         <Route path="/" element={hasSession() ? <Navigate to="/dashboard" replace /> : <LandingPage jobs={jobs} />} />
-        <Route path="/signup" element={SignupPage()} />
-        <Route path="/login" element={LoginPage()} />
-        <Route path="/opportunities" element={OpportunitiesPage()} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/opportunities" element={<OpportunitiesPage />} />
         <Route path="/companies" element={<CompanyDirectoryPage />} />
         <Route path="/advanced-ai" element={<AdvancedAISuitePage />} />
         <Route path="/saas" element={<ModernSaaSPage />} />
-        <Route path="/forgot-password" element={ForgotPasswordPage()} />
-        <Route path="/verify-email/:token" element={VerifyEmailPage()} />
-        <Route path="/reset-password/:token" element={ResetPasswordPage()} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
         <Route
           path="/dashboard"
           element={

@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_URL = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+const DEFAULT_DEV_API_URL = import.meta.env.DEV ? "http://127.0.0.1:8001" : "";
+const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_DEV_API_URL || "").replace(/\/$/, "");
 const API_AUTH_BASE = (
   import.meta.env.VITE_API_AUTH_BASE ||
   (API_URL ? `${API_URL}/api/auth` : "/api/auth")
@@ -17,6 +18,28 @@ const api = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+if (import.meta.env.DEV) {
+  console.info("[AIJobPlatform] API base URL:", api.defaults.baseURL || "/api (dev proxy)");
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (import.meta.env.DEV) {
+      const requestUrl = error?.config?.url || "unknown";
+      if (String(requestUrl).includes("/auth/") || String(requestUrl).includes("/jobs/")) {
+        console.error("[AIJobPlatform] API request failed", {
+          url: requestUrl,
+          status: error?.response?.status,
+          message: error?.message,
+          detail: error?.response?.data,
+        });
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 let refreshInFlight = null;
 const responseCache = new Map();
