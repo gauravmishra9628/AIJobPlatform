@@ -66,6 +66,9 @@ import PublicProfilePage from "./components/PublicProfilePage";
 import CandidateLeaderboard from "./components/CandidateLeaderboard";
 import AutoApplyPanel from "./components/AutoApplyPanel";
 import RecruiterAssistant from "./components/RecruiterAssistant";
+import NotificationBadge from "./components/NotificationBadge";
+import Notifications from "./components/Notifications";
+import RealChat from "./components/RealChat";
 
 const CompanyProfile = lazy(() => import("./components/CompanyProfile"));
 
@@ -986,11 +989,14 @@ function TopNav({ profile, onLogout, loading }) {
             </Link>
           ))}
       </nav>
-      {profile ? (
-        <button className="ghostButton navButton" disabled={loading} onClick={onLogout} type="button">
-          Logout
-        </button>
-      ) : null}
+      <div className="topNavActions">
+        {profile ? <NotificationBadge /> : null}
+        {profile ? (
+          <button className="ghostButton navButton" disabled={loading} onClick={onLogout} type="button">
+            Logout
+          </button>
+        ) : null}
+      </div>
     </header>
   );
 }
@@ -3018,6 +3024,10 @@ export default function App() {
         <ProfileRail />
         <main className="feedColumn">
           <FeedComposer />
+          <section className="realtimeGrid">
+            <Notifications />
+            <RealChat />
+          </section>
           <section className="panel">
             <div className="sectionHeader inline">
               <div>
